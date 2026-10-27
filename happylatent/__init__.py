@@ -1,0 +1,1 @@
+"""HappyLatent node pack services."""

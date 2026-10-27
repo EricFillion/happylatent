@@ -1,0 +1,331 @@
+:host { display: block; color-scheme: dark; width: 100%; height: 100%; }
+.happylatent, .happylatent * { box-sizing: border-box; }
+.happylatent {
+  --background: #171417;
+  --surface: #262126;
+  --surface-hover: #383038;
+  --accent: #ba3045;
+  --text: #f6f3f5;
+  --focus: #ff9dad;
+  --border: #4a4048;
+  --control-border: #756671;
+  --muted: #d8cfd5;
+  --input: #110f11;
+  --canvas-bg: #110f11;
+  --track: #382e35;
+  --selection: #713144;
+  --selection-border: #ffa6b5;
+  --waveform: #ddb0bd;
+  --playhead: #fafafa;
+  position: relative; display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; overflow: hidden; color: var(--text); background: var(--background); font: 15px/1.5 system-ui, sans-serif; border: 1px solid var(--border); border-radius: 12px; color-scheme: dark; box-shadow: 0 10px 32px #0004; container-type: inline-size; isolation: isolate;
+}
+.happylatent [hidden] { display: none !important; }
+.happylatent button, .happylatent input, .happylatent textarea, .happylatent select { font: inherit; color: inherit; }
+.happylatent button { cursor: pointer; line-height: 1.4; }
+.happylatent button:disabled { color: #a298a0; background: transparent; cursor: default; opacity: .7; }
+.happylatent button:focus-visible, .happylatent input:focus-visible, .happylatent textarea:focus-visible, .happylatent select:focus-visible, .happylatent canvas:focus-visible, .happylatent summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.happylatent input, .happylatent textarea, .happylatent select { background: var(--input); border: 1px solid var(--control-border); border-radius: 6px; padding: 7px 9px; min-width: 0; font-size: 16px; font-weight: 400; line-height: 1.4; }
+.happylatent textarea { resize: vertical; width: 100%; min-height: 68px; max-height: 160px; }
+.happylatent p { margin: 0; }
+.happylatent .visually-hidden { display: none; }
+.happylatent .generation-status { display: flex; align-items: center; gap: 8px; flex: none; min-width: 0; min-height: 34px; padding: 6px 18px; background: var(--input); border-bottom: 1px solid var(--border); font-size: 14px; line-height: 20px; }
+.happylatent .generation-status-text { min-width: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.happylatent .generation-status[data-state="error"] { color: #ffb3b3; }
+.happylatent .generation-status[data-state="interrupted"], .happylatent .generation-status[data-state="unknown"] { color: var(--muted); }
+.happylatent .generation-activity { flex: 0 0 12px; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--focus); border-radius: 50%; animation: happylatent-generation-spin 1s linear infinite; }
+@keyframes happylatent-generation-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .happylatent .generation-activity { animation: none; } }
+.happylatent .happylatent-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding: 8px 18px; background: var(--surface); border-bottom: 1px solid var(--border); flex: none; }
+.happylatent .preset-control { margin-right: auto; display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.happylatent .preset-label { display: flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 15px; font-weight: 500; }
+.happylatent .sampling-preset { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-width: 112px; min-height: 36px; padding: 7px 10px; background: var(--input); border: 1px solid var(--control-border); border-radius: 6px; cursor: pointer; font-size: 15px; }
+.happylatent .sampling-preset::after { content: ""; flex: 0 0 6px; width: 6px; height: 6px; margin-bottom: 3px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); }
+.happylatent .sampling-summary { font-size: 14px; color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.happylatent .header-actions { display: flex; gap: 5px; }
+.happylatent .global-settings { padding: 9px 18px 10px; flex: none; background: #1b181b; border-bottom: 1px solid var(--border); }
+.happylatent .global-settings-main, .happylatent .scene-fields, .happylatent .audio-layout { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(352px, .75fr); align-items: start; gap: 20px; }
+.happylatent .global-prompt, .happylatent .scene-prompt { height: 64px; min-height: 64px; max-height: 64px; resize: none; }
+.happylatent .settings-grid.global-settings-grid { grid-template-columns: repeat(2, minmax(50px, 1fr)) minmax(80px, 1fr) minmax(90px, 1.5fr); margin-top: 0; }
+.happylatent .scene-controls, .happylatent .audio-fields { display: grid; grid-template-columns: minmax(0, 156px) minmax(0, 184px); align-items: start; gap: 12px; min-width: 0; }
+.happylatent .scene-settings { min-width: 0; }
+.happylatent .settings-grid.scene-sampling-grid { grid-template-columns: 1fr; margin-top: 0; }
+.happylatent .scene-sampling-grid .image-strength { width: 96px; }
+.happylatent .sampling-footer { display: flex; align-items: center; gap: 4px; padding-top: 4px; }
+.happylatent .sampling-footer .text-button { min-height: 30px; font-size: 13px; padding: 4px 6px; border-color: var(--border); }
+.happylatent .quiet-button, .happylatent .icon-button, .happylatent .text-button { background: transparent; border: 1px solid transparent; border-radius: 5px; min-height: 32px; padding: 5px 8px; white-space: nowrap; }
+.happylatent .quiet-button:hover:not(:disabled), .happylatent .icon-button:hover:not(:disabled), .happylatent .text-button:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--control-border); }
+
+.happylatent .icon-button { min-width: 34px; font-size: 18px; }
+.happylatent .happylatent-workspace { display: flex; flex: 1; min-height: 0; }
+.happylatent .happylatent-main { display: flex; flex: 1; flex-direction: column; min-width: 0; min-height: 0; gap: 8px; padding: 0 18px 8px; background: var(--background); overflow: auto; overscroll-behavior: contain; }
+.happylatent .preview-stage { position: relative; background: #000; border: 1px solid var(--border); border-radius: 7px; min-height: 0; flex: 1; overflow: hidden; }
+.happylatent .preview-image { width: 100%; height: 100%; position: absolute; inset: 0; object-fit: contain; }
+.happylatent .preview-crop-overlay { position: absolute; overflow: hidden; pointer-events: none; }
+.happylatent .preview-crop-frame { position: absolute; border: 1px solid #fff; box-shadow: 0 0 0 9999px #0009, 0 0 0 1px #000b, inset 0 0 0 1px #0009; }
+.happylatent .preview-crop-frame.is-movable { pointer-events: auto; touch-action: none; cursor: grab; }
+.happylatent .preview-crop-frame.is-cropping { cursor: grabbing; }
+.happylatent .preview-crop-frame:focus-visible { outline: 2px solid var(--text); outline-offset: -4px; }
+.happylatent .crop-handle { position: absolute; width: 20px; height: 20px; min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 3px; background: transparent; pointer-events: auto; touch-action: none; z-index: 2; }
+.happylatent .crop-handle[data-crop-handle="nw"] { top: -5px; left: -5px; cursor: nwse-resize; }
+.happylatent .crop-handle[data-crop-handle="ne"] { top: -5px; right: -5px; cursor: nesw-resize; }
+.happylatent .crop-handle[data-crop-handle="sw"] { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.happylatent .crop-handle[data-crop-handle="se"] { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.happylatent .crop-handle:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.happylatent .preview-image-actions { display: flex; flex: none; justify-content: flex-end; gap: 4px; margin-left: auto; font-size: 13px; }
+.happylatent .timeline-panel { display: grid; grid-template-columns: 1fr auto; background: var(--input); border: 1px solid var(--border); border-radius: 7px; margin: 2px 18px 12px; flex: none; }
+.happylatent .transport { display: flex; align-items: center; gap: 8px; padding: 6px 10px; min-height: 44px; min-width: 0; background: var(--surface); }
+.happylatent .transport [data-action=start] { font-size: 14px; padding: 4px; }
+.happylatent .play-button { background: var(--accent); color: var(--text); border: 1px solid #e26074; border-radius: 5px; width: 32px; height: 32px; padding: 0; }
+.happylatent .playhead-time, .happylatent .total-time { font: 14px ui-monospace, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.happylatent .total-time { color: var(--muted); }
+.happylatent .timeline-canvas { grid-column: 1 / -1; display: block; width: 100%; height: 184px; touch-action: none; cursor: crosshair; }
+.happylatent .timeline-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; padding: 6px 10px; background: var(--surface); }
+.happylatent .timeline-zoom { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+.happylatent .timeline-zoom .quiet-button { min-width: 24px; padding: 3px 5px; font-size: 14px; }
+.happylatent .timeline-zoom-range { width: 80px; min-width: 0; padding: 0; appearance: none; height: 16px; border: 0; background: transparent; accent-color: var(--muted); }
+.happylatent .timeline-zoom-range::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; background: var(--control-border); }
+.happylatent .timeline-zoom-range::-webkit-slider-thumb { appearance: none; width: 12px; height: 12px; margin-top: -3.5px; border: 1px solid var(--background); border-radius: 50%; background: var(--muted); }
+.happylatent .timeline-zoom-range::-moz-range-track { height: 5px; border-radius: 3px; background: var(--control-border); }
+.happylatent .timeline-zoom-range::-moz-range-thumb { width: 10px; height: 10px; border: 1px solid var(--background); border-radius: 50%; background: var(--muted); }
+.happylatent .timeline-zoom-value { min-width: 44px; text-align: right; font: 14px ui-monospace, monospace; color: var(--muted); }
+.happylatent .timeline-scroll { grid-column: 1 / -1; overflow-x: scroll; overflow-y: hidden; height: 16px; overscroll-behavior-x: contain; scrollbar-color: var(--muted) var(--surface); scrollbar-width: thin; }
+.happylatent .timeline-scroll-space { height: 1px; }
+.happylatent .timeline-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.happylatent .inspector { flex: 0 0 136px; min-width: 0; margin: 0 18px 8px; padding-top: 9px; overflow: auto; overscroll-behavior: contain; }
+.happylatent .inspector-section { min-width: 0; }
+.happylatent .field-label { display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-weight: 500; color: var(--text); }
+.happylatent .audio-heading { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
+.happylatent .scene-prompt-field, .happylatent .scene-timing, .happylatent .audio-timing { min-width: 0; }
+.happylatent .scene-timing, .happylatent .audio-fields:has(.audio-file-fields[hidden]) .audio-timing { grid-column: 1 / -1; }
+.happylatent .duration-row { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 15px; font-weight: 500; }
+.happylatent .scene-duration { width: 96px; }
+.happylatent .frame-help, .happylatent .audio-start-time { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 2px 6px; color: var(--muted); font-size: 12px; line-height: 16px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.happylatent .timing-frames, .happylatent .timing-start { white-space: nowrap; }
+.happylatent .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.happylatent .settings-grid label { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 15px; font-weight: 500; color: var(--text); }
+.happylatent .settings-grid input, .happylatent .settings-grid select { width: 100%; }
+.happylatent .drag-over { outline: 2px solid var(--focus); outline-offset: -2px; }
+.happylatent .inline-feedback { flex: none; margin: 0; padding: 5px 2px; font-size: 13px; color: #ffb3b3; overflow-wrap: anywhere; }
+.happylatent .inline-feedback[data-kind="loading"] { color: var(--muted); }
+.happylatent .project-feedback { flex-basis: 100%; }
+.happylatent .audio-feedback, .happylatent .playback-feedback { grid-column: 1 / -1; padding: 5px 12px; }
+.happylatent .audio-drag-preview { position: absolute; bottom: 0; left: 12px; right: 12px; z-index: 2; padding: 4px 8px; border: 1px solid var(--control-border); border-radius: 4px; background: var(--surface); color: var(--text); font-size: 13px; pointer-events: none; }
+.happylatent .timeline-panel { position: relative; }
+.happylatent .inspector .section-heading { height: 28px; align-items: center; }
+.happylatent .audio-apply-button { min-height: 26px; padding: 2px 6px; font-size: 13px; border-color: var(--control-border); }
+.happylatent .audio-apply-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 22px; border: 1px solid var(--control-border); border-radius: 10px; color: var(--text); background: var(--surface); box-shadow: 0 16px 48px #0008; }
+.happylatent .audio-apply-dialog::backdrop { background: #0009; }
+.happylatent .audio-apply-dialog h2 { margin: 0 0 10px; font-size: 20px; line-height: 1.3; }
+.happylatent .audio-apply-dialog p { font-size: 14px; color: var(--muted); }
+.happylatent .audio-apply-selects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 18px 0 12px; }
+.happylatent .audio-apply-selects label { display: grid; gap: 5px; min-width: 0; font-size: 14px; }
+.happylatent .audio-apply-selects select { width: 100%; }
+.happylatent .audio-apply-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+.happylatent .audio-apply-dialog .audio-apply-error { color: #ffb3b3; padding-top: 10px; }
+.happylatent input[aria-invalid="true"] { border-color: #ffb3b3; }
+
+.happylatent .audio-summary { display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: 15px; }
+.happylatent .audio-title-line { display: flex; align-items: baseline; gap: 12px; min-width: 0; height: 22.5px; }
+.happylatent .audio-description { height: 64px; min-width: 0; padding: 8px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; overflow: auto; }
+.happylatent .audio-fields input[type="number"] { width: 96px; }
+.happylatent .audio-fields input:disabled { color: var(--muted); border-style: dashed; opacity: .8; }
+.happylatent .audio-source-duration { min-width: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.happylatent .audio-file-details { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
+.happylatent .audio-file-details .quiet-button { flex: none; font-size: 14px; border: 1px solid var(--control-border); }
+.happylatent .audio-generation-help, .happylatent .audio-empty-help { font-size: 14px; line-height: 1.5; color: var(--muted); }
+
+.happylatent .number-unit { position: relative; display: inline-flex; align-items: center; gap: 6px; font-weight: 400; }
+.happylatent .scene-duration, .happylatent .audio-duration { appearance: textfield; padding-right: 28px; }
+.happylatent .scene-duration::-webkit-inner-spin-button, .happylatent .scene-duration::-webkit-outer-spin-button, .happylatent .audio-duration::-webkit-inner-spin-button, .happylatent .audio-duration::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.happylatent .duration-stepper { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: grid; grid-template-rows: repeat(2, 13px); }
+.happylatent .duration-stepper button { display: grid; place-items: center; width: 16px; height: 13px; min-height: 0; padding: 0; border: 0; border-radius: 2px; background: transparent; color: var(--muted); font: 9px/1 system-ui, sans-serif; }
+.happylatent .duration-stepper button:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); }
+.happylatent * { scrollbar-color: var(--muted) var(--surface); scrollbar-width: thin; }
+.happylatent button:focus-visible { outline-color: var(--text); }
+
+.happylatent .video-duration { margin-right: auto; min-width: 0; color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.happylatent .timeline-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 7px 10px; }
+.happylatent .clip-audio-control { display: flex; align-items: center; gap: 8px; }
+.happylatent .audio-mode-label { font-weight: 500; white-space: nowrap; }
+.happylatent .audio-guidance-menu { flex: none; }
+.happylatent .audio-guidance-summary { display: flex; flex-direction: column; justify-content: center; width: 142px; height: 34px; padding: 2px 8px; border: 1px solid var(--control-border); border-radius: 5px; cursor: pointer; }
+.happylatent .audio-guidance-summary:hover { background: var(--surface-hover); }
+.happylatent .audio-guidance-value { font-size: 13px; line-height: 15px; }
+.happylatent .audio-coverage-value { color: var(--muted); font-size: 11px; line-height: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.happylatent .audio-guidance-menu .audio-guidance-options { width: min(500px, calc(100cqw - 60px)); padding: 0; }
+.happylatent .scene-audio-guidance { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; min-height: 88px; padding: 12px; }
+.happylatent .audio-guidance-control, .happylatent .audio-coverage-details { min-width: 0; }
+.happylatent .audio-guidance-scope { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; line-height: 16px; }
+.happylatent .audio-guidance-label { display: flex; align-items: center; gap: 7px; margin: 3px 0; font-size: 14px; line-height: 20px; cursor: pointer; }
+.happylatent .audio-guidance-label:has(:disabled) { color: var(--muted); cursor: default; }
+/* Use a semantic button to avoid native checkbox activation in the embedded browser. */
+.happylatent .audio-guidance-options button.audio-guidance { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 0; padding: 0; margin: 3px 0; border: 0; border-radius: 0; background: transparent; color: var(--text); font: inherit; font-size: 14px; line-height: 20px; text-align: left; white-space: normal; }
+.happylatent .audio-guidance-check { display: grid; place-content: center; flex: none; width: 16px; height: 16px; border: 1px solid var(--control-border); border-radius: 3px; background: var(--surface); }
+.happylatent .audio-guidance[aria-checked="true"] .audio-guidance-check { background: var(--accent); border-color: var(--accent); }
+.happylatent .audio-guidance[aria-checked="true"] .audio-guidance-check::after { content: ""; width: 8px; height: 4px; border-left: 2px solid var(--text); border-bottom: 2px solid var(--text); transform: translateY(-1px) rotate(-45deg); }
+.happylatent .audio-guidance:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.happylatent .audio-guidance:disabled { opacity: .5; cursor: default; }
+.happylatent .audio-guidance-description, .happylatent .audio-guidance-help { color: var(--muted); font-size: 12px; line-height: 16px; }
+.happylatent .audio-coverage { font-size: 13px; line-height: 20px; font-variant-numeric: tabular-nums; }
+.happylatent .audio-coverage-bar { position: relative; height: 6px; margin: 5px 0; border-radius: 3px; background: var(--surface-hover); overflow: hidden; }
+.happylatent .audio-coverage-bar span { position: absolute; height: 100%; min-width: 1px; background: var(--focus); }
+@container (max-width: 740px) {
+  .happylatent .scene-audio-guidance { min-height: 104px; gap: 12px; }
+}
+@container (max-width: 620px) {
+  .happylatent .scene-audio-guidance { grid-template-columns: minmax(0, 1fr); min-height: 156px; gap: 8px; }
+}
+.happylatent .add-clip { display: inline-flex; align-items: center; gap: 10px; min-height: 34px; padding: 6px 10px; border: 1px solid var(--control-border); border-radius: 5px; background: var(--surface); color: var(--text); font-weight: 500; cursor: pointer; white-space: nowrap; }
+.happylatent .add-clip:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--muted); }
+.happylatent .editor-menu { position: relative; }
+.happylatent .editor-menu summary { list-style: none; }
+.happylatent .editor-menu summary::-webkit-details-marker { display: none; }
+.happylatent .menu-options { position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 10; min-width: 180px; display: grid; gap: 3px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px #0008; }
+.happylatent .menu-options button { padding: 10px 12px; text-align: left; border: 0; border-radius: 5px; background: transparent; white-space: nowrap; }
+.happylatent .menu-options button:hover { background: var(--surface-hover); }
+
+.happylatent .generation-menu { z-index: 20; flex: none; }
+.happylatent .generation-menu .menu-options { top: calc(100% + 6px); bottom: auto; left: 0; right: auto; min-width: 140px; }
+.happylatent .menu-options button[aria-checked="true"]:not(.audio-guidance), .happylatent .menu-options button:focus-visible { background: var(--accent); color: var(--text); outline-color: var(--focus); }
+.happylatent .timeline-surface { grid-column: 1 / -1; position: relative; min-width: 0; }
+.happylatent .scene-name-input { position: absolute; z-index: 2; padding: 4px 6px; font-size: 14px; font-weight: 600; border-color: var(--focus); background: var(--input); box-shadow: 0 3px 12px #0008; }
+
+.happylatent .preview-toolbar { position: absolute; top: 7px; left: 7px; right: 7px; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 5px; pointer-events: none; }
+.happylatent .preview-toolbar > * { pointer-events: auto; }
+
+.happylatent input:hover:not(:disabled), .happylatent textarea:hover:not(:disabled), .happylatent select:hover:not(:disabled) { border-color: var(--muted); }
+.happylatent input[type="number"] { font-variant-numeric: tabular-nums; }
+.happylatent .header-actions .icon-button { border: 1px solid var(--border); }
+.happylatent .section-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-width: 0; height: 20px; margin-bottom: 4px; line-height: 20px; }
+.happylatent .global-settings > .section-heading { justify-content: flex-end; }
+.happylatent .section-heading strong { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; font-weight: 650; }
+.happylatent .section-scope { flex: none; color: var(--muted); font-size: 13px; font-weight: 400; }
+.happylatent .inspector .section-heading strong { color: #ffd3db; }
+.happylatent .crop-handle::after { content: ""; position: absolute; inset: 4px; border: 1px solid #fff; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 1px #000b; }
+.happylatent .crop-handle:hover::after { background: var(--selection-border); }
+.happylatent [data-action="remove-image"]:hover { color: #ffd0d7; border-color: #ba6676; background: #48242d; }
+.happylatent .play-button:hover:not(:disabled) { background: #d13d54; }
+.happylatent .timecode-format { font: 12px ui-monospace, monospace; color: var(--muted); white-space: nowrap; }
+.happylatent .preview-scene-name { min-width: 0; max-width: 120px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); font-size: 13px; }
+.happylatent .preview-frame-label { flex: none; margin-left: auto; padding: 3px 7px; border-radius: 4px; background: #110f11e8; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.happylatent .keyframe-editor { flex: none; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.happylatent .image-panel-heading { display: flex; flex: none; flex-direction: column; justify-content: center; }
+.happylatent .image-panel-heading strong { font-size: 14px; }
+.happylatent .image-controls { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 34px; }
+.happylatent .image-controls.is-empty { visibility: hidden; }
+.happylatent .image-controls .scene-settings { display: flex; flex: none; align-items: center; gap: 6px; }
+.happylatent .image-controls .settings-grid { display: block; }
+.happylatent .image-controls .image-strength-field { flex-direction: row; align-items: center; gap: 5px; font-size: 13px; }
+.happylatent .image-controls .strength-scope-field { display: flex; align-items: center; gap: 5px; font-size: 13px; white-space: nowrap; }
+.happylatent .image-controls .image-strength { width: 64px; padding: 5px 6px; font-size: 14px; }
+.happylatent .image-controls .sampling-footer { padding-top: 0; }
+.happylatent .image-controls .quiet-button { padding: 4px 7px; min-height: 30px; border-color: var(--border); }
+.happylatent .keyframe-strip { display: flex; gap: 5px; min-width: 0; flex: 1; overflow-x: auto; padding: 3px; }
+.happylatent .keyframe-card { display: flex; align-items: center; gap: 6px; flex: none; min-height: 38px; padding: 4px 7px; border: 1px solid var(--control-border); border-radius: 5px; background: var(--input); font-size: 14px; }
+.happylatent .keyframe-card[aria-pressed="true"] { border-color: var(--focus); background: var(--selection); }
+.happylatent .keyframe-card img, .happylatent .keyframe-empty { width: 32px; height: 26px; object-fit: cover; border-radius: 2px; }
+.happylatent .keyframe-empty { display: grid; place-items: center; border: 1px dashed var(--control-border); color: var(--muted); }
+.happylatent .sampling-footer { flex-wrap: nowrap; }
+.happylatent .sampling-footer .text-button { flex: none; white-space: nowrap; line-height: 1.2; }
+.happylatent .strength-scope { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 172px; padding: 4px 7px; font-size: 13px; line-height: 20px; height: 32px; background: var(--input); border: 1px solid var(--control-border); border-radius: 6px; cursor: pointer; }
+.happylatent .strength-scope-menu { z-index: 10; }
+.happylatent .strength-scope-menu .menu-options { left: 0; right: auto; bottom: calc(100% + 6px); min-width: 100%; }
+.happylatent .strength-scope-menu .menu-options button { padding: 7px 9px; font-size: 14px; }
+.happylatent .inspector { flex-basis: 126px; flex-shrink: 0; min-height: 0; }
+.happylatent .happylatent-workspace { min-height: 172px; }
+.happylatent .preview-stage { min-height: 80px; }
+.happylatent:has(.generation-status:not([hidden])) .inspector { flex-shrink: 1; min-height: 88px; }
+
+@container (max-width: 1200px) {
+  .happylatent .timeline-canvas { height: 112px; }
+}
+
+@container (max-width: 900px) {
+  .happylatent .inspector { flex-basis: 118px; }
+  .happylatent .keyframe-card img, .happylatent .keyframe-empty { width: 28px; height: 28px; }
+  .happylatent .keyframe-editor { gap: 5px; }
+  .happylatent .image-controls { gap: 5px; }
+  .happylatent .image-controls .scene-settings { gap: 4px; }
+  .happylatent .global-settings-grid label { white-space: nowrap; font-size: 13px; }
+}
+
+@container (max-width: 740px) {
+  .happylatent .image-controls { gap: 4px; }
+  .happylatent .image-controls .strength-scope { width: 152px; }
+  .happylatent .image-controls .image-strength { width: 52px; }
+  .happylatent .image-controls .scene-settings { gap: 3px; }
+  .happylatent .image-controls .quiet-button { padding-left: 2px; padding-right: 2px; }
+  .happylatent .global-settings-main, .happylatent .scene-fields, .happylatent .audio-layout { grid-template-columns: minmax(200px, 1fr) minmax(334px, 1.2fr); gap: 14px; }
+  .happylatent .scene-controls, .happylatent .audio-fields { grid-template-columns: minmax(0, 142px) minmax(0, 180px); }
+  .happylatent .transport { gap: 6px; padding-left: 8px; padding-right: 8px; }
+  .happylatent .timeline-toolbar { padding-left: 6px; padding-right: 8px; }
+  .happylatent .timeline-zoom-range { width: 58px; }
+  .happylatent .preset-control { flex-wrap: nowrap; gap: 8px; }
+  .happylatent .sampling-summary { flex: 1; min-width: 110px; line-height: 1.35; }
+  .happylatent .preset-label { font-size: 14px; }
+  .happylatent .settings-grid.global-settings-grid { grid-template-columns: minmax(68px, .85fr) minmax(68px, .85fr) minmax(90px, 1.1fr) minmax(70px, 1fr); }
+  .happylatent .global-settings-grid label { white-space: nowrap; font-size: 13px; line-height: 22.5px; }
+  .happylatent .sampling-footer { gap: 3px; }
+  .happylatent .sampling-footer .text-button { padding-left: 4px; padding-right: 4px; }
+}
+
+@container (max-width: 620px) {
+  .happylatent .global-settings-main, .happylatent .scene-fields, .happylatent .audio-layout { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .happylatent .inspector { flex-basis: 220px; }
+  .happylatent .timeline-toolbar { grid-column: 1 / -1; padding-top: 0; }
+  .happylatent .transport { grid-column: 1 / -1; flex-wrap: wrap; }
+  .happylatent .preview-toolbar { gap: 4px; }
+  .happylatent .preview-image-actions { font-size: 13px; }
+  .happylatent .preview-frame-label { max-width: 55%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+}
+
+@container (max-width: 900px) {
+  .happylatent .timeline-canvas { height: 112px; }
+  .happylatent .global-prompt, .happylatent .scene-prompt { height: 48px; min-height: 48px; max-height: 48px; padding: 5px 9px; font-size: 15px; line-height: 18px; }
+  .happylatent .audio-description { height: 48px; padding: 5px 9px; font-size: 15px; line-height: 18px; }
+  .happylatent .audio-generation-help { font-size: 14px; line-height: 18px; }
+  .happylatent .timeline-actions { padding-top: 5px; padding-bottom: 5px; }
+}
+
+/* Label the retained crop directly, reserving headroom even at the image's top edge. */
+.happylatent .preview-stage { min-height: 96px; }
+.happylatent .preview-image { top: 36px; height: calc(100% - 36px); }
+.happylatent .crop-area-label { position: absolute; z-index: 3; max-width: calc(100% - 4px); padding: 2px 8px; border: 1px solid var(--control-border); border-radius: 4px; background: #171417ed; color: var(--text); font-size: 13px; line-height: 18px; font-weight: 500; white-space: nowrap; pointer-events: none; }
+.happylatent .keyframe-editor .preview-frame-label { background: transparent; padding: 0; font-size: 13px; }
+
+/* The divider adjusts view space only; the timeline remains the same project. */
+.happylatent .panel-divider { flex: none; display: flex; align-items: center; justify-content: center; height: 16px; margin: 0 18px; cursor: row-resize; touch-action: none; border-radius: 4px; }
+.happylatent .panel-divider span { display: block; width: 56px; height: 4px; border-radius: 2px; background: var(--control-border); }
+.happylatent .panel-divider:hover, .happylatent .panel-divider.is-resizing, .happylatent .panel-divider:focus-visible { background: var(--surface-hover); }
+.happylatent .panel-divider:hover span, .happylatent .panel-divider.is-resizing span { background: var(--focus); }
+.happylatent .panel-divider:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.happylatent .global-prompt-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.happylatent.has-constrained-layout { overflow-y: auto; overscroll-behavior: contain; }
+.happylatent:has(.generation-status:not([hidden])) .inspector { flex-shrink: 0; }
+.happylatent .inspector { flex-basis: 142px; }
+@container (max-width: 900px) {
+  .happylatent .generation-status { min-height: 30px; padding-top: 4px; padding-bottom: 4px; }
+  .happylatent .happylatent-header { padding-top: 4px; padding-bottom: 4px; }
+  .happylatent .global-settings { padding-top: 4px; padding-bottom: 4px; }
+  .happylatent .inspector { padding-top: 6px; flex-basis: 115px; margin-bottom: 4px; }
+  .happylatent .happylatent-main { gap: 3px; padding-bottom: 2px; }
+  .happylatent .keyframe-strip { padding-top: 0; padding-bottom: 0; }
+  .happylatent .panel-divider { height: 12px; }
+  .happylatent .sampling-preset { padding-top: 6px; padding-bottom: 6px; }
+  .happylatent .transport { min-height: 38px; padding-top: 3px; padding-bottom: 3px; }
+  .happylatent .timeline-toolbar { padding-top: 3px; padding-bottom: 3px; }
+  .happylatent .add-clip { padding-top: 4px; padding-bottom: 4px; }
+  .happylatent .timeline-panel { margin-top: 0; margin-bottom: 2px; }
+  .happylatent .timeline-actions { padding-top: 3px; padding-bottom: 3px; }
+  .happylatent .inspector { flex-basis: 132px; }
+}
+@container (max-width: 620px) {
+  .happylatent .inspector { flex-basis: 240px; }
+}
+
+/* Wider nodes devote the extra space to prompts while keeping numeric controls aligned. */
+@container (min-width: 1100px) {
+  .happylatent .global-settings-main, .happylatent .scene-fields, .happylatent .audio-layout { grid-template-columns: minmax(0, 1fr) 400px; }
+}

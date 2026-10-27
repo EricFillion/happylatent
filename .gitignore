@@ -1,0 +1,56 @@
+# Local runtimes and dependencies
+.runtime/
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.py[cod]
+
+# Local credentials (only sanitized examples belong in Git)
+.env
+.env.*
+!.env.example
+!.env.sample
+.aws/
+.ssh/
+*.pem
+*.key
+credentials.json
+secrets.json
+.npmrc
+.pypirc
+
+# Models and generated/user media
+/models/
+/input/
+/output/
+/outputs/
+*.safetensors
+*.ckpt
+*.gguf
+*.pt
+*.pth
+
+# Machine-specific metadata and caches
+.DS_Store
+.idea/
+.vscode/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+*.log
+
+# Test output and local evidence
+test-results/
+playwright-report/
+artifacts/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+
+# web/ is intentionally included: ComfyUI loads these built assets directly.
+# Generated source maps are optional debugging assets.
+/web/*.js.map
