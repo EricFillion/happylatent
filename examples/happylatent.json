@@ -8,39 +8,19 @@
       "id": 1,
       "type": "UNETLoader",
       "pos": [
-        -40,
-        80
+        -270.71409822104596,
+        170.7176793975948
       ],
       "size": [
-        210,
-        82
+        245.83908321880335,
+        86.47988540235025
       ],
       "flags": {},
       "order": 0,
       "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "unet_name",
-          "name": "unet_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "unet_name"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "weight_dtype",
-          "name": "weight_dtype",
-          "type": "COMBO",
-          "widget": {
-            "name": "weight_dtype"
-          },
-          "link": null
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "localized_name": "MODEL",
           "name": "MODEL",
           "type": "MODEL",
           "links": [
@@ -50,6 +30,8 @@
       ],
       "title": "UNETLoader",
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
         "Node name for S&R": "UNETLoader"
       },
       "widgets_values": [
@@ -65,49 +47,19 @@
       "id": 2,
       "type": "CLIPLoader",
       "pos": [
-        -40,
-        260
+        -275.71785033100423,
+        357.0946976549544
       ],
       "size": [
-        210,
-        106
+        257.37753319308035,
+        110.09435472038962
       ],
       "flags": {},
       "order": 1,
       "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "clip_name",
-          "name": "clip_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "clip_name"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "type",
-          "name": "type",
-          "type": "COMBO",
-          "widget": {
-            "name": "type"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "device",
-          "name": "device",
-          "shape": 7,
-          "type": "COMBO",
-          "widget": {
-            "name": "device"
-          },
-          "link": null
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "localized_name": "CLIP",
           "name": "CLIP",
           "type": "CLIP",
           "links": [
@@ -117,6 +69,8 @@
       ],
       "title": "CLIPLoader",
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
         "Node name for S&R": "CLIPLoader"
       },
       "widgets_values": [
@@ -134,30 +88,19 @@
       "id": 3,
       "type": "VAELoader",
       "pos": [
-        -40,
-        440
+        -273.1069976386227,
+        527.3291702068003
       ],
       "size": [
-        210,
-        60
+        261.57234461031476,
+        97.81971938089748
       ],
       "flags": {},
       "order": 2,
       "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "vae_name",
-          "name": "vae_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "vae_name"
-          },
-          "link": null
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "localized_name": "VAE",
           "name": "VAE",
           "type": "VAE",
           "links": [
@@ -167,6 +110,8 @@
       ],
       "title": "VAELoader",
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
@@ -180,30 +125,19 @@
       "id": 4,
       "type": "VAELoader",
       "pos": [
-        -40,
-        620
+        -277.0840458642361,
+        714.410929710053
       ],
       "size": [
-        210,
-        60
+        273.72967737774167,
+        96.4927395043228
       ],
       "flags": {},
       "order": 3,
       "mode": 0,
-      "inputs": [
-        {
-          "localized_name": "vae_name",
-          "name": "vae_name",
-          "type": "COMBO",
-          "widget": {
-            "name": "vae_name"
-          },
-          "link": null
-        }
-      ],
+      "inputs": [],
       "outputs": [
         {
-          "localized_name": "VAE",
           "name": "VAE",
           "type": "VAE",
           "links": [
@@ -213,6 +147,8 @@
       ],
       "title": "VAELoader",
       "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
@@ -238,42 +174,28 @@
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "model",
           "name": "model",
           "type": "MODEL",
           "link": 1
         },
         {
-          "localized_name": "clip",
           "name": "clip",
           "type": "CLIP",
           "link": 2
         },
         {
-          "localized_name": "video_vae",
           "name": "video_vae",
           "type": "VAE",
           "link": 3
         },
         {
-          "localized_name": "audio_vae",
           "name": "audio_vae",
           "type": "VAE",
           "link": 4
-        },
-        {
-          "localized_name": "project",
-          "name": "project",
-          "type": "STRING",
-          "widget": {
-            "name": "project"
-          },
-          "link": null
         }
       ],
       "outputs": [
         {
-          "localized_name": "video",
           "name": "video",
           "type": "VIDEO",
           "links": [
@@ -282,84 +204,50 @@
         }
       ],
       "properties": {
+        "aux_id": "EricFillion/happylatent",
+        "ver": "043e260479c785e3a7782761b57f4f13989cd990",
         "Node name for S&R": "HappyLatentVideo"
       },
       "widgets_values": [
-        "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"seed\":42,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"samplingPreset\":\"auto\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":120},{\"id\":\"scene-2\",\"name\":\"Butterfly\",\"prompt\":\"A close-up of a butterfly resting on a flower. It slowly opens and closes its wings while the flower sways gently. The camera stays steady, with soft birdsong in the background.\",\"durationFrames\":120}],\"audioSegments\":[{\"id\":\"audio-1\",\"kind\":\"generate\",\"startFrame\":0,\"endFrame\":null}]}"
+        "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":120,\"audioMode\":\"generated\"},{\"id\":\"scene-2\",\"name\":\"Butterfly\",\"prompt\":\"A close-up of a butterfly resting on a flower. It slowly opens and closes its wings while the flower sways gently. The camera stays steady, with soft birdsong in the background.\",\"durationFrames\":120,\"audioMode\":\"generated\"}],\"seed\":42,\"audioSegments\":[{\"id\":\"audio-6a73382-17\",\"startFrame\":0,\"endFrame\":120,\"kind\":\"generate\"},{\"id\":\"audio-5a731ef-17\",\"startFrame\":120,\"endFrame\":240,\"kind\":\"generate\"}],\"samplingPreset\":\"auto\"}"
       ],
       "widgets_values_named": {
-        "project": "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"seed\":42,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"samplingPreset\":\"auto\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":120},{\"id\":\"scene-2\",\"name\":\"Butterfly\",\"prompt\":\"A close-up of a butterfly resting on a flower. It slowly opens and closes its wings while the flower sways gently. The camera stays steady, with soft birdsong in the background.\",\"durationFrames\":120}],\"audioSegments\":[{\"id\":\"audio-1\",\"kind\":\"generate\",\"startFrame\":0,\"endFrame\":null}]}"
+        "project": "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":120,\"audioMode\":\"generated\"},{\"id\":\"scene-2\",\"name\":\"Butterfly\",\"prompt\":\"A close-up of a butterfly resting on a flower. It slowly opens and closes its wings while the flower sways gently. The camera stays steady, with soft birdsong in the background.\",\"durationFrames\":120,\"audioMode\":\"generated\"}],\"seed\":42,\"audioSegments\":[{\"id\":\"audio-6a73382-17\",\"startFrame\":0,\"endFrame\":120,\"kind\":\"generate\"},{\"id\":\"audio-5a731ef-17\",\"startFrame\":120,\"endFrame\":240,\"kind\":\"generate\"}],\"samplingPreset\":\"auto\"}"
       }
     },
     {
       "id": 6,
       "type": "SaveVideo",
       "pos": [
-        1570,
-        200
+        1576.7198281035253,
+        177.60057298824796
       ],
       "size": [
-        210,
-        106
+        897.576016512784,
+        602.886509288441
       ],
       "flags": {},
       "order": 5,
       "mode": 0,
       "inputs": [
         {
-          "localized_name": "video",
           "name": "video",
           "type": "VIDEO",
           "link": 5
-        },
-        {
-          "localized_name": "filename_prefix",
-          "name": "filename_prefix",
-          "type": "STRING",
-          "widget": {
-            "name": "filename_prefix"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "format",
-          "name": "format",
-          "type": "COMFY_DYNAMICCOMBO_V3",
-          "widget": {
-            "name": "format"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "codec",
-          "name": "format.codec",
-          "type": "COMFY_DYNAMICCOMBO_V3",
-          "widget": {
-            "name": "format.codec"
-          },
-          "link": null
-        },
-        {
-          "localized_name": "codec",
-          "name": "codec",
-          "shape": 7,
-          "type": "COMFY_DYNAMICCOMBO_V3",
-          "widget": {
-            "name": "codec"
-          },
-          "link": null
         }
       ],
       "outputs": [
         {
-          "localized_name": "video",
           "name": "video",
           "type": "VIDEO",
           "links": null
         }
       ],
       "title": "SaveVideo",
-      "properties": {},
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0"
+      },
       "widgets_values": [
         "happylatent/sequence",
         "mp4",
@@ -420,12 +308,13 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.8,
+      "scale": 0.4464399912887703,
       "offset": [
-        160,
-        100
+        563.1330678831072,
+        329.58695478765725
       ]
-    }
+    },
+    "frontendVersion": "1.57.4"
   },
   "version": 0.4
 }
