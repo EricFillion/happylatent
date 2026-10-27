@@ -249,13 +249,13 @@
         "ver": "0.43.0"
       },
       "widgets_values": [
-        "happylatent/sequence",
+        "happylatent/video",
         "mp4",
         "auto",
         "auto"
       ],
       "widgets_values_named": {
-        "filename_prefix": "happylatent/sequence",
+        "filename_prefix": "happylatent/video",
         "format": "mp4",
         "format.codec": "auto",
         "codec": "auto"
@@ -308,10 +308,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.4464399912887703,
+      "scale": 0.35949939522761476,
       "offset": [
-        563.1330678831072,
-        329.58695478765725
+        1273.1831802822364,
+        398.96846492545166
       ]
     },
     "frontendVersion": "1.57.4"
