@@ -1,0 +1,12 @@
+[project]
+name = "happylatent"
+version = "0.0.1"
+description = "Video editor for LTX 2.5"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/EricFillion/happylatent"
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "HappyLatent"

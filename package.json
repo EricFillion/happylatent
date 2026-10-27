@@ -1,9 +1,9 @@
 {
   "name": "happylatent",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "HappyLatent ComfyUI node pack, featuring the HappyLatentVideo clip editor for LTX 2.5",
+  "description": "Video editor for LTX 2.5",
   "license": "GPL-3.0-only",
   "scripts": {
     "build": "node scripts/build.mjs"
