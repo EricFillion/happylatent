@@ -223,7 +223,6 @@
 .happylatent .image-controls .quiet-button { padding: 4px 7px; min-height: 30px; border-color: var(--border); }
 .happylatent .keyframe-strip { display: flex; gap: 5px; min-width: 0; flex: 1; overflow-x: auto; padding: 3px; }
 .happylatent .keyframe-card { display: flex; align-items: center; gap: 6px; flex: none; min-height: 38px; padding: 4px 7px; border: 1px solid var(--control-border); border-radius: 5px; background: var(--input); font-size: 14px; }
-.happylatent .keyframe-card[aria-pressed="true"] { border-color: var(--focus); background: var(--selection); }
 .happylatent .keyframe-card img, .happylatent .keyframe-empty { width: 32px; height: 26px; object-fit: cover; border-radius: 2px; }
 .happylatent .keyframe-empty { display: grid; place-items: center; border: 1px dashed var(--control-border); color: var(--muted); }
 .happylatent .sampling-footer { flex-wrap: nowrap; }
