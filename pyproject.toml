@@ -8,5 +8,5 @@ license = { file = "LICENSE" }
 Repository = "https://github.com/EricFillion/happylatent"
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "ericfillion"
 DisplayName = "HappyLatent"
