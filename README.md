@@ -1,15 +1,23 @@
-<h1 align="center">
-  HappyLatent
-</h1>
+<h1 align="center">HappyLatent</h1>
 
 <p align="center">
   <a href="LICENSE">
-    <img src="https://img.shields.io/badge/License-GPL%203.0-blue.svg" alt="License: GPL-3.0" height="20">
+    <img src="https://img.shields.io/badge/License-GPL%203.0-b84a5b" alt="License: GPL-3.0" height="20">
   </a>
 </p>
 
+<table width="100%">
+  <tr>
+    <td align="center">
+      <img
+        src="https://github.com/user-attachments/assets/f638820e-747c-4a80-8c0d-b9521c14797e"
+        width="100%"
+        alt="HappyLatent visual editor in ComfyUI"
+      >
+    </td>
+  </tr>
+</table>
 
-TODO ADD IMAGE
 
 A visual editor for generating videos with LTX 2.5 in ComfyUI.
 
@@ -34,16 +42,60 @@ You can find an example workflow in [examples/happylatent.json](examples/happyla
 
 ## Examples
 
-### Multiple Scenes
-
-TODO
-
 ### Image-to-Video
 
-TODO 
+<table width="100%">
+  <tr>
+    <th width="45%">Generated video</th>
+    <th width="55%">HappyLatent node</th>
+  </tr>
+  <tr>
+    <td width="45%" valign="top">
+      <video src="https://github.com/user-attachments/assets/19d1b8d9-804c-42ba-a750-45625e7febd8" width="100%" controls></video>
+    </td>
+    <td width="55%" valign="top">
+      <a href="https://github.com/user-attachments/assets/938c0386-d3db-4fac-a207-e377ea3a8845">
+        <img src="https://github.com/user-attachments/assets/938c0386-d3db-4fac-a207-e377ea3a8845" width="100%" alt="HappyLatent image-to-video setup">
+      </a>
+    </td>
+  </tr>
+</table>
+
+### Multiple Scenes
+
+<table width="100%">
+  <tr>
+    <th width="45%">Generated video</th>
+    <th width="55%">HappyLatent node</th>
+  </tr>
+  <tr>
+    <td width="45%" valign="top">
+      <video src="https://github.com/user-attachments/assets/a1320289-ac63-45d6-b9e4-51a9acee913d" width="100%" controls></video>
+    </td>
+    <td width="55%" valign="top">
+      <a href="https://github.com/user-attachments/assets/1afbcd73-2100-4c83-8c71-8b87421c3cd5">
+        <img src="https://github.com/user-attachments/assets/1afbcd73-2100-4c83-8c71-8b87421c3cd5" width="100%" alt="HappyLatent multiple-scene setup">
+      </a>
+    </td>
+  </tr>
+</table>
 
 ### First and Last Frames
 
-TODO 
-
+<table width="100%">
+  <tr>
+    <th width="45%">Generated video</th>
+    <th width="55%">HappyLatent node</th>
+  </tr>
+  <tr>
+    <td width="45%" valign="top">
+      <video src="https://github.com/user-attachments/assets/e1a3cc83-6826-47fa-bbc0-6669028a93c3" width="100%" controls></video>
+    </td>
+    <td width="55%" valign="top">
+      <a href="https://github.com/user-attachments/assets/9f6de7d8-0c13-4136-a321-564f36a033d5">
+        <img src="https://github.com/user-attachments/assets/9f6de7d8-0c13-4136-a321-564f36a033d5" width="100%" alt="HappyLatent first-and-last-frame setup">
+      </a>
+    </td>
+  </tr>
+</table>
 
