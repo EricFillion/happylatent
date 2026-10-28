@@ -28,16 +28,31 @@ A visual editor for generating videos with LTX 2.5 in ComfyUI.
 
 ## Install
 
-Run this from your ComfyUI directory to place the repo under the `custom_nodes` directory.
+
+### ComfyUI Manager
+
+1. Open ComfyUI and click Manager.
+2. Open Custom Nodes Manager and search for HappyLatent.
+3. Select HappyLatent and click install.
+
+### ComfyUI CLI 
 
 ```sh
-git clone https://github.com/EricFillion/happylatent.git custom_nodes/happylatent
+comfy node install happylatent
 ```
 
-Restart ComfyUI, then add the HappyLatent node to your workflow. Generation requires the LTX 2.5 model, text encoder, video VAE, and audio VAE, which can be retrieved by running [examples/models.py](examples/models.py).
+### Manual 
+
+Navigate to your `custom_nodes` directory then clone the repository. 
+
+```sh
+git clone https://github.com/EricFillion/happylatent.git
+```
+
+
+Restart ComfyUI, then add the HappyLatentVideo node to your workflow. Generation requires the LTX 2.5 model, text encoder, video VAE, and audio VAE, which can be retrieved by running [examples/models.py](examples/models.py).
 
 You can find an example workflow in [examples/happylatent.json](examples/happylatent.json).
-
 
 
 ## Examples
