@@ -46,8 +46,8 @@ You can find an example workflow in [examples/happylatent.json](examples/happyla
 
 <table width="100%">
   <tr>
-    <th width="45%">Generated video</th>
-    <th width="55%">HappyLatent node</th>
+    <th width="45%">Generated Video</th>
+    <th width="55%">Node</th>
   </tr>
   <tr>
     <td width="45%" valign="top">
@@ -62,19 +62,18 @@ You can find an example workflow in [examples/happylatent.json](examples/happyla
 </table>
 
 ### Multiple Scenes
-
 <table width="100%">
   <tr>
     <th width="45%">Generated video</th>
-    <th width="55%">HappyLatent node</th>
+    <th width="55%">Node</th>
   </tr>
   <tr>
     <td width="45%" valign="top">
-      <video src="https://github.com/user-attachments/assets/a1320289-ac63-45d6-b9e4-51a9acee913d" width="100%" controls></video>
+      <video src="https://github.com/user-attachments/assets/1e89b81d-973b-4d67-8282-0a50ded70ac6" width="100%" controls></video>
     </td>
     <td width="55%" valign="top">
-      <a href="https://github.com/user-attachments/assets/1afbcd73-2100-4c83-8c71-8b87421c3cd5">
-        <img src="https://github.com/user-attachments/assets/1afbcd73-2100-4c83-8c71-8b87421c3cd5" width="100%" alt="HappyLatent multiple-scene setup">
+      <a href="https://github.com/user-attachments/assets/971f91a8-af37-4a11-b2cc-77b0fd69b441">
+        <img src="https://github.com/user-attachments/assets/971f91a8-af37-4a11-b2cc-77b0fd69b441" width="100%" alt="HappyLatent multiple-scene setup">
       </a>
     </td>
   </tr>
@@ -84,8 +83,8 @@ You can find an example workflow in [examples/happylatent.json](examples/happyla
 
 <table width="100%">
   <tr>
-    <th width="45%">Generated video</th>
-    <th width="55%">HappyLatent node</th>
+    <th width="45%">Generated Video</th>
+    <th width="55%">Node</th>
   </tr>
   <tr>
     <td width="45%" valign="top">
