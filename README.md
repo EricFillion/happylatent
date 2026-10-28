@@ -1,4 +1,4 @@
-<h1 align="center">HappyLatent</h1>
+<h1 align="center">Happy Latent</h1>
 
 <p align="center">
   <a href="LICENSE">
@@ -12,7 +12,7 @@
       <img
         src="https://github.com/user-attachments/assets/f638820e-747c-4a80-8c0d-b9521c14797e"
         width="100%"
-        alt="HappyLatent visual editor in ComfyUI"
+        alt="Happy Latent visual editor in ComfyUI"
       >
     </td>
   </tr>
