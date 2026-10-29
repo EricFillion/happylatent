@@ -115,10 +115,10 @@
         "Node name for S&R": "VAELoader"
       },
       "widgets_values": [
-        "ltx-2.5-video-vae-bf16.safetensors"
+        "ltx-2.5-video-vae-conv-bf16.safetensors"
       ],
       "widgets_values_named": {
-        "vae_name": "ltx-2.5-video-vae-bf16.safetensors"
+        "vae_name": "ltx-2.5-video-vae-conv-bf16.safetensors"
       }
     },
     {
