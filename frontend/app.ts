@@ -846,7 +846,8 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
     const loading = audioLoading || audioUploading;
     button.disabled = loading; button.setAttribute("aria-busy", String(loading));
     button.textContent = loading ? "…" : icon(playback.playing ? "pause" : "play");
-    button.setAttribute("aria-label", loading ? "Loading audio" : playback.playing ? "Pause" : "Play");
+    button.title = "Silent preview. Audio is included in the exported video.";
+    button.setAttribute("aria-label", loading ? "Loading audio" : playback.playing ? "Pause silent preview" : "Play silent preview");
   }
   async function togglePlay(): Promise<void> {
     const request = ++transportRequest, requestedProject = project;

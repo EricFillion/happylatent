@@ -1,6 +1,6 @@
 [project]
 name = "happylatent"
-version = "0.0.1"
+version = "0.0.2"
 description = "Video editor for LTX 2.5"
 license = { file = "LICENSE" }
 
