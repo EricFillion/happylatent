@@ -1,11 +1,10 @@
 import { assetUrl, totalFrames } from "./domain.js";
-import { AUDIO_SAMPLE_RATE as SAMPLE_RATE, audioEnd, frameToSample } from "./audio.js";
-/** One clock drives every uploaded clip. Generated regions stay silent in the storyboard. */
+import { AUDIO_SAMPLE_RATE as SAMPLE_RATE } from "./audio.js";
+/** Silent storyboard transport; audio decoding is used only for waveforms and timing. */
 export class Playback {
     context;
     buffers = new Map();
     loading = new Map();
-    sources = new Set();
     project;
     position = 0;
     startedAt = 0;
@@ -13,8 +12,6 @@ export class Playback {
     animation = 0;
     active = false;
     loadVersion = 0;
-    playVersion = 0;
-    pendingPlay = false;
     disposed = false;
     onFrame = () => { };
     onWaveforms = () => { };
@@ -27,7 +24,7 @@ export class Playback {
     }
     get playing() { return this.active; }
     audioDuration(asset) { return this.buffers.get(assetUrl(asset))?.duration ?? 0; }
-    now() { return this.context?.currentTime ?? performance.now() / 1000; }
+    now() { return performance.now() / 1000; }
     assetKeys() {
         return new Set(this.project.audioSegments.flatMap(segment => segment.kind === "file" ? [assetUrl(segment.asset)] : []));
     }
@@ -58,16 +55,8 @@ export class Playback {
         this.onFrame(this.position, false);
     }
     audioContext() {
-        if (!this.context) {
-            // Preserve a silent player's clock if a source is prepared while it runs.
-            const frame = this.frame;
-            this.context = new AudioContext({ sampleRate: SAMPLE_RATE });
-            if (this.active) {
-                this.startFrame = frame;
-                this.startedAt = this.context.currentTime;
-            }
-        }
-        return this.context;
+        // Decode uploaded files without creating an audio output device.
+        return this.context ??= new OfflineAudioContext(2, 1, SAMPLE_RATE);
     }
     /** Decode before publishing the upload or changing its existing clip. */
     async prepareAudio(url) {
@@ -142,78 +131,23 @@ export class Playback {
         this.publishWaveforms();
     }
     async play() {
-        if (this.active || this.pendingPlay || this.disposed)
+        if (this.active || this.disposed)
             return;
-        const version = ++this.playVersion;
-        this.pendingPlay = true;
         if (this.position >= totalFrames(this.project))
             this.position = 0;
-        try {
-            if (this.context)
-                await this.context.resume();
-        }
-        catch (error) {
-            if (this.disposed || version !== this.playVersion)
-                return;
-            this.pendingPlay = false;
-            throw error;
-        }
-        if (this.disposed || version !== this.playVersion)
-            return;
-        this.pendingPlay = false;
         this.startFrame = this.position;
         this.startedAt = this.now();
         this.active = true;
-        try {
-            if (this.context) {
-                const total = totalFrames(this.project), fps = this.project.fps;
-                const positionSample = frameToSample(this.position, fps);
-                for (const segment of this.project.audioSegments) {
-                    if (segment.kind !== "file")
-                        continue;
-                    const decoded = this.buffers.get(assetUrl(segment.asset));
-                    if (!decoded)
-                        continue;
-                    const start = frameToSample(Math.max(this.position, segment.startFrame), fps);
-                    const end = frameToSample(Math.min(total, audioEnd(segment, total)), fps);
-                    const offset = segment.sourceOffsetSamples + start - frameToSample(segment.startFrame, fps);
-                    const count = Math.min(end - start, Math.round(decoded.duration * SAMPLE_RATE) - offset);
-                    if (count <= 0)
-                        continue;
-                    const source = this.context.createBufferSource();
-                    this.sources.add(source);
-                    source.buffer = decoded.buffer;
-                    source.connect(this.context.destination);
-                    source.onended = () => { source.disconnect(); this.sources.delete(source); };
-                    source.start(this.startedAt + (start - positionSample) / SAMPLE_RATE, offset / SAMPLE_RATE, count / SAMPLE_RATE);
-                }
-            }
-        }
-        catch (error) {
-            this.pause();
-            throw error;
-        }
         this.tick();
     }
     stop() {
-        this.playVersion++;
-        this.pendingPlay = false;
         this.position = this.frame;
         this.active = false;
         cancelAnimationFrame(this.animation);
-        for (const source of this.sources) {
-            source.onended = null;
-            try {
-                source.stop();
-            }
-            catch { /* A scheduled source may already have ended. */ }
-            source.disconnect();
-        }
-        this.sources.clear();
     }
     pause() { this.stop(); this.onFrame(this.position, false); }
     seek(frame) {
-        const resume = this.active || this.pendingPlay;
+        const resume = this.active;
         this.pause();
         this.position = Math.max(0, Math.min(totalFrames(this.project), Math.round(frame)));
         this.onFrame(this.position, false);
@@ -239,8 +173,7 @@ export class Playback {
         this.pause();
         this.loading.clear();
         this.buffers.clear();
-        if (this.context)
-            void this.context.close().catch(() => { });
+        this.context = undefined;
     }
 }
 //# sourceMappingURL=playback.js.map
