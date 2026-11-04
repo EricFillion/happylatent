@@ -23,6 +23,84 @@ app.registerExtension({
     projectWidget.computeSize = () => [0, -4];
     projectWidget.computeLayoutSize = () => ({ minWidth: 0, minHeight: 0, maxHeight: 0 });
 
+    // Native widgets remain the workflow/API persistence boundary. Only connected
+    // model inputs expose the corresponding controls in the editor.
+    const upscaleNames = ["upscale_enabled", "upscale_mode", "spatial_upscale_model_name", "temporal_upscale_model_name", "refine_enabled"];
+    const upscaleWidgets = Object.fromEntries(upscaleNames.map(name => [name, node.widgets?.find(widget => widget.name === name)]));
+    const hasUpscaleControls = Boolean(upscaleWidgets.upscale_enabled && upscaleWidgets.upscale_mode);
+    let publishingUpscale = false;
+    function linked(name) { return node.inputs?.some(input => input.name === name && input.link != null) ?? false; }
+    function modelLinked(name) { return node.inputs?.some(input => input.name === name && input.type === "LATENT_UPSCALE_MODEL" && input.link != null) ?? false; }
+    function upscaleSettings() {
+      if (!hasUpscaleControls) return undefined;
+      const enabled = upscaleWidgets.upscale_enabled.value === true;
+      const mode = upscaleWidgets.upscale_mode.value;
+      const spatialLinked = modelLinked("upscale_model"), temporalLinked = modelLinked("temporal_upscale_model");
+      return {
+        spatialEnabled: spatialLinked && enabled && (mode === "spatial" || mode === "spatial+temporal"),
+        temporalEnabled: temporalLinked && enabled && (mode === "temporal" || mode === "spatial+temporal"),
+        spatialLinked,
+        temporalLinked,
+        controlsLinked: linked("upscale_enabled") || linked("upscale_mode"),
+        refineEnabled: upscaleWidgets.refine_enabled?.value === true,
+        refineLinked: linked("refine_enabled"),
+      };
+    }
+    function persistUpscale(spatialEnabled, temporalEnabled) {
+      const changes = {
+        upscale_enabled: spatialEnabled || temporalEnabled,
+        upscale_mode: spatialEnabled && temporalEnabled ? "spatial+temporal" : temporalEnabled ? "temporal" : "spatial",
+      };
+      publishingUpscale = true;
+      try {
+        for (const [name, next] of Object.entries(changes)) {
+          const widget = upscaleWidgets[name];
+          if (widget.value !== next) { widget.value = next; widget.callback?.(next); }
+        }
+      } finally { publishingUpscale = false; }
+    }
+    function syncUpscale(normalize = false) {
+      const settings = upscaleSettings();
+      if (settings) {
+        // Clear disconnected stages before saving or queueing, including legacy
+        // workflows whose hidden filename selections used to enable upscaling.
+        if (normalize) persistUpscale(settings.spatialEnabled, settings.temporalEnabled);
+        editor?.setUpscaleSettings(settings);
+      }
+      for (const input of node.inputs ?? []) {
+        if (input.name === "upscale_model") input.label = "spatial_upscaler";
+        if (input.name === "temporal_upscale_model") input.label = "temporal_upscaler";
+      }
+    }
+    function changeUpscale(value) {
+      const current = upscaleSettings();
+      if (!current) return;
+      if (current.controlsLinked && (current.refineLinked || current.temporalEnabled || !upscaleWidgets.refine_enabled || typeof value.refineEnabled !== "boolean" || current.refineEnabled === value.refineEnabled)) return;
+      if (!current.controlsLinked) persistUpscale(Boolean(current.spatialLinked && value.spatialEnabled), Boolean(current.temporalLinked && value.temporalEnabled));
+      const refine = upscaleWidgets.refine_enabled;
+      // The widget retains the manual preference; temporal refinement is forced
+      // by the backend and displayed as checked without overwriting that choice.
+      if (refine && !current.refineLinked && !current.temporalEnabled && typeof value.refineEnabled === "boolean" && refine.value !== value.refineEnabled) {
+        refine.value = value.refineEnabled;
+        refine.callback?.(refine.value);
+      }
+      syncUpscale();
+      node.graph?.change();
+      node.setDirtyCanvas(true, true);
+    }
+    if (hasUpscaleControls) for (const widget of Object.values(upscaleWidgets).filter(Boolean)) {
+      widget.type = "hidden";
+      widget.hidden = true;
+      widget.computeSize = () => [0, -4];
+      widget.computeLayoutSize = () => ({ minWidth: 0, minHeight: 0, maxHeight: 0 });
+      const callback = widget.callback;
+      widget.callback = function (...args) {
+        const result = callback?.apply(this, args);
+        if (!publishingUpscale) syncUpscale();
+        return result;
+      };
+    }
+
     const host = document.createElement("div");
     host.className = "happylatent-widget";
     host.style.cssText = "width:100%;height:100%;overflow:hidden;";
@@ -57,6 +135,7 @@ app.registerExtension({
     projectWidget.serializeValue = function (...args) {
       // ComfyUI must never queue an older value while an editor field is invalid.
       editor?.flushPendingEdits();
+      syncUpscale(true);
       return serializeProject ? serializeProject.apply(this, args) : this.value;
     };
     // Workflow saving copies widget.value directly, bypassing serializeValue.
@@ -65,6 +144,7 @@ app.registerExtension({
     const serializeNode = node.serialize;
     if (typeof serializeNode === "function") node.serialize = function (...args) {
       const snapshot = editor?.flushPendingEdits(false);
+      syncUpscale(true);
       const value = projectWidget.value;
       const wasPublishing = publishing;
       publishing = true;
@@ -89,6 +169,8 @@ app.registerExtension({
           stopModelProfile?.();
           editor = mountHappyLatentVideo(container, {
             project,
+            upscale: upscaleSettings(),
+            onUpscaleChange: changeUpscale,
             onChange(value) {
               publishing = true;
               try {
@@ -101,6 +183,7 @@ app.registerExtension({
           });
           stopModelProfile = watchModelProfile(node, profile => editor?.setModelProfile(profile));
         }
+        syncUpscale();
         stopGeneration = generation.watch(node, status => editor?.setGenerationStatus(status));
       } catch (error) {
         stopModelProfile?.(); stopModelProfile = undefined;
@@ -124,6 +207,14 @@ app.registerExtension({
     node.onConfigure = function (...args) {
       const result = onConfigure?.apply(this, args);
       updateTitle();
+      const config = args[0], refine = upscaleWidgets.refine_enabled;
+      if (refine && config && typeof config === "object" && (config.widgets_values_named || Array.isArray(config.widgets_values))) {
+        const named = config.widgets_values_named;
+        const hasRefine = named && Object.hasOwn(named, "refine_enabled")
+          || Array.isArray(config.widgets_values) && typeof config.widgets_values[node.widgets.indexOf(refine)] === "boolean";
+        if (!hasRefine) refine.value = upscaleSettings()?.spatialEnabled === true;
+      }
+      syncUpscale(true);
       restore();
       return result;
     };
@@ -131,6 +222,14 @@ app.registerExtension({
     node.onAdded = function (...args) {
       const result = onAdded?.apply(this, args);
       if (!editor) restore();
+      return result;
+    };
+    const onConnectionsChange = node.onConnectionsChange;
+    node.onConnectionsChange = function (...args) {
+      const result = onConnectionsChange?.apply(this, args);
+      // Connecting several inputs during import may happen in sequence; keep
+      // the saved mode until configuration/serialization has all the inputs.
+      syncUpscale(args[2] !== true);
       return result;
     };
     const onRemoved = node.onRemoved;

@@ -24,6 +24,7 @@ A visual editor for generating videos with LTX 2.5 in ComfyUI.
 - Arrange scenes and adjust their duration on a timeline.
 - Guide each scene with a prompt and optional first and last frame images.
 - Choose generated audio, uploaded audio, or silence for each clip.
+- Upscale video resolution, increase frame rate, and refine the output.
 
 
 ## Install
@@ -50,9 +51,9 @@ git clone https://github.com/EricFillion/happylatent.git
 ```
 
 
-Restart ComfyUI, then add the HappyLatentVideo node to your workflow. Generation requires the LTX 2.5 model, text encoder, video VAE, and audio VAE, which can be retrieved by running [examples/starter/models.py](workflows/starter/models.py).
+Restart ComfyUI, then add the HappyLatentVideo node to your workflow. Generation requires the LTX 2.5 model, text encoder, video VAE, and audio VAE, which can be retrieved by running [workflows/starter/models.py](workflows/starter/models.py).
 
-You can find an example workflow in [examples/starter/happylatent.json](workflows/starter/happylatent.json).
+You can find an example workflow in [workflows/starter/happylatent.json](workflows/starter/happylatent.json).
 
 
 ## Examples

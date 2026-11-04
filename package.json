@@ -1,6 +1,6 @@
 {
   "name": "happylatent",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": true,
   "type": "module",
   "description": "Video editor for LTX 2.5",

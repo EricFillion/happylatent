@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import json
 
-from .compiler import compile_project
+from .compiler import (NO_UPSCALE_MODEL, SPATIAL_UPSCALE_MODEL_NAME, TEMPORAL_UPSCALE_MODEL_NAME,
+                       UPSCALE_MODES, compile_project, validate_refine_options, validate_upscale_options)
 from .project import MAX_SCENE_SECONDS, MAX_TIMELINE_SECONDS, ValidationError, _integer, model_length, validate_generation_audio, validate_project
 
 DEFAULT_PROJECT = json.dumps({
@@ -43,27 +44,76 @@ def project_assets(project):
             yield segment["asset"]
 
 
+def available_upscale_models():
+    """Keep schema inspection and pure tests usable outside a ComfyUI process."""
+    try:
+        import folder_paths
+    except ModuleNotFoundError as error:
+        if error.name != "folder_paths":
+            raise
+        return []
+    try:
+        return sorted(set(folder_paths.get_filename_list("latent_upscale_models")))
+    except KeyError:
+        return []
+
+
+def upscale_model_choices(names, preferred):
+    default = preferred if preferred in names else next(
+        (name for name in names if name.replace("\\", "/").rsplit("/", 1)[-1].lower() == preferred.lower()),
+        NO_UPSCALE_MODEL)
+    return ([NO_UPSCALE_MODEL, *[name for name in names if name != NO_UPSCALE_MODEL]],
+            {"default": default})
+
+
 class HappyLatentVideo:
     @classmethod
     def INPUT_TYPES(cls):
+        names = available_upscale_models()
         return {"required": {
             "model": ("MODEL", {"rawLink": True}),
             "clip": ("CLIP", {"rawLink": True}),
             "video_vae": ("VAE", {"rawLink": True}),
             "audio_vae": ("VAE", {"rawLink": True}),
             "project": ("STRING", {"default": DEFAULT_PROJECT, "multiline": True}),
+        }, "optional": {
+            "upscale_enabled": ("BOOLEAN", {"default": False, "label_on": "ON — 2x", "label_off": "OFF",
+                "tooltip": "Upscale each scene's generated latents before decoding using the selected mode. Timeline dimensions and frame rate remain the base generation settings."}),
+            "upscale_model": ("LATENT_UPSCALE_MODEL", {"rawLink": True, "lazy": True,
+                "tooltip": "Connect the official LTX 2.5 spatial 2x latent upscaler. Used only by spatial modes."}),
+            "upscale_mode": (list(UPSCALE_MODES), {"default": "spatial",
+                "tooltip": "Spatial doubles width/height; temporal doubles FPS while preserving duration and audio; combined does both. Temporal upscaling always includes source-anchored refinement."}),
+            "temporal_upscale_model": ("LATENT_UPSCALE_MODEL", {"rawLink": True, "lazy": True,
+                "tooltip": "Connect the official LTX 2.5 temporal 2x latent upscaler. Used only by temporal modes."}),
+            "spatial_upscale_model_name": upscale_model_choices(names, SPATIAL_UPSCALE_MODEL_NAME),
+            "temporal_upscale_model_name": upscale_model_choices(names, TEMPORAL_UPSCALE_MODEL_NAME),
+            "refine_enabled": ("BOOLEAN", {"default": False,
+                "tooltip": "Refine the output with the connected generation model. Temporal upscaling always requires refinement."}),
         }, "hidden": {"prompt": "PROMPT"}}
 
     RETURN_TYPES = ("VIDEO",)
     RETURN_NAMES = ("video",)
     FUNCTION = "generate"
     CATEGORY = "HappyLatent"
-    DESCRIPTION = "Arrange clips, prompts and images. Choose exactly one audio mode per clip: silent, provided audio or generated audio. Connect the model, text encoder, video VAE and audio VAE, then send VIDEO to Save Video."
+    DESCRIPTION = "Arrange clips, prompts and images. Choose exactly one audio mode per clip: silent, provided audio or generated audio. Connect the model, text encoder, video VAE and audio VAE, then send VIDEO to Save Video. Optionally enable spatial and/or temporal LTX 2.5 latent upscaling before decoding. Temporal upscaling includes source-anchored refinement, preserving duration and audio at double the output FPS."
 
     @classmethod
-    def VALIDATE_INPUTS(cls, project):
+    def VALIDATE_INPUTS(cls, project, upscale_enabled=False, upscale_model=None,
+                        upscale_mode="spatial", temporal_upscale_model=None,
+                        spatial_upscale_model_name=NO_UPSCALE_MODEL, temporal_upscale_model_name=NO_UPSCALE_MODEL,
+                 refine_enabled=None):
         try:
             validate_generation_audio(parse_project(project))
+            validate_refine_options(refine_enabled)
+            # A linked Boolean is unresolved during ComfyUI's preflight. Its
+            # actual value and the loader link are checked again in compilation.
+            awaiting_name = upscale_enabled and (
+                (upscale_mode in ("spatial", "spatial+temporal") and upscale_model is None and spatial_upscale_model_name is None)
+                or (upscale_mode in ("temporal", "spatial+temporal") and temporal_upscale_model is None and temporal_upscale_model_name is None))
+            if upscale_enabled is not None and upscale_mode is not None and not awaiting_name:
+                validate_upscale_options(upscale_enabled, upscale_model, upscale_mode, temporal_upscale_model,
+                    spatial_upscale_model_name, temporal_upscale_model_name,
+                    available_model_names=available_upscale_models() if upscale_enabled else None)
         except ValidationError as error:
             return str(error)
         return True
@@ -79,12 +129,19 @@ class HappyLatentVideo:
         return tuple((json.dumps(asset, sort_keys=True), *asset_fingerprint(asset))
                      for asset in project_assets(parse_project(project)))
 
-    def generate(self, model, clip, video_vae, audio_vae, project, prompt=None):
+    def generate(self, model, clip, video_vae, audio_vae, project, prompt=None,
+                 upscale_enabled=False, upscale_model=None, upscale_mode="spatial", temporal_upscale_model=None,
+                 spatial_upscale_model_name=NO_UPSCALE_MODEL, temporal_upscale_model_name=NO_UPSCALE_MODEL,
+                 refine_enabled=None):
         from comfy_execution.graph_utils import GraphBuilder
         from .assets import open_asset
 
         project = parse_project(project)
         validate_generation_audio(project)
+        validate_refine_options(refine_enabled)
+        validate_upscale_options(upscale_enabled, upscale_model, upscale_mode, temporal_upscale_model,
+            spatial_upscale_model_name, temporal_upscale_model_name,
+            available_model_names=available_upscale_models() if upscale_enabled else None)
         for asset in project_assets(project):
             try:
                 with open_asset(asset):
@@ -95,7 +152,12 @@ class HappyLatentVideo:
                 raise ValidationError(f"Cannot access media file: {asset['filename']}") from None
         graph, video = compile_project(project, model=model, clip=clip,
                                       video_vae=video_vae, audio_vae=audio_vae,
-                                      prefix=GraphBuilder().prefix, prompt=prompt)
+                                      prefix=GraphBuilder().prefix, prompt=prompt,
+                                      upscale_enabled=upscale_enabled, upscale_model=upscale_model,
+                                      upscale_mode=upscale_mode, temporal_upscale_model=temporal_upscale_model,
+                                      spatial_upscale_model_name=spatial_upscale_model_name,
+                                      temporal_upscale_model_name=temporal_upscale_model_name,
+                                      refine_enabled=refine_enabled)
         return {"result": (video,), "expand": graph}
 
 
@@ -207,13 +269,82 @@ class HappyLatentDecode:
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
+    @staticmethod
+    def _mps_large_tile_fits(samples, vae):
+        """Qualify the measured single-tile LTX path without reserving memory."""
+        import math
+        import torch
+
+        latent = samples.get("samples") if isinstance(samples, dict) else None
+        if (not torch.is_tensor(latent) or latent.is_nested or latent.ndim != 5
+                or latent.shape[:2] != (1, 128) or not 1 <= latent.shape[2] <= 16):
+            return False
+        # Only the measured 1024x576 geometry qualifies. Larger temporal tiles
+        # were slower at 512x288; smaller or transposed grids need their own data.
+        if latent.shape[3:] != (18, 32):
+            return False
+        try:
+            from comfy.ldm.lightricks.vae.causal_video_autoencoder import VideoVAE
+            import comfy.model_management
+
+            model = vae.first_stage_model
+            if (type(model) is not VideoVAE or not model.comfy_has_chunked_io
+                    or vae.vae_dtype != torch.bfloat16 or vae.latent_dim != 3
+                    or vae.spacial_compression_decode() != 32
+                    or vae.temporal_compression_decode() != 8):
+                return False
+            estimate = float(vae.memory_used_decode(latent.shape, vae.vae_dtype))
+            available = float(comfy.model_management.get_free_memory(vae.device))
+            recommended = float(torch.mps.recommended_max_memory())
+            allocated = float(torch.mps.driver_allocated_memory())
+            if (not all(math.isfinite(value) for value in (estimate, available, recommended, allocated))
+                    or min(estimate, available, recommended) <= 0 or allocated < 0):
+                return False
+            # Measured Metal working-set peaks exceed the VAE's estimate. Leave
+            # a 3x allowance plus 2 GiB, using current system and Metal headroom.
+            required = 3 * estimate + 2 * 1024**3
+            return required <= min(available, recommended - allocated)
+        except (AttributeError, ImportError, RuntimeError, TypeError, ValueError, OverflowError):
+            # Older hosts or unknown estimates retain their established decoder.
+            return False
+
     def decode(self, samples, vae):
         import nodes
 
-        # Full CUDA decoding avoids temporal tile seams; ComfyUI handles its
-        # recognized OOM errors. Keep the bounded path on other backends.
-        if getattr(getattr(vae, "device", None), "type", None) == "cuda":
+        device = getattr(getattr(vae, "device", None), "type", None)
+        # CUDA retains ComfyUI's native decoder and recognized OOM handling.
+        if device == "cuda":
             return nodes.VAEDecode().decode(vae, samples)
+        if device == "mps" and self._mps_large_tile_fits(samples, vae):
+            import gc
+            import logging
+            import torch
+
+            try:
+                cpu_rng = torch.random.get_rng_state()
+                mps_rng = torch.mps.get_rng_state()
+            except (AttributeError, RuntimeError):
+                # Do not try a path whose random-state fallback is unavailable.
+                pass
+            else:
+                try:
+                    # Every qualified canvas fits one tile. Measured outputs
+                    # match full-frame native decoding without changing dtype.
+                    return nodes.VAEDecodeTiled().decode(
+                        vae, samples, tile_size=1024, overlap=128,
+                        temporal_size=128, temporal_overlap=16)
+                except RuntimeError as error:
+                    # Native VAE.decode can retry internally without restoring
+                    # RNG. Explicit tiling keeps this fallback under our control.
+                    if not (isinstance(error, torch.OutOfMemoryError)
+                            or str(error).lower().startswith("mps backend out of memory")):
+                        raise
+                # Leave the exception scope before freeing failed allocations.
+                gc.collect()
+                torch.mps.empty_cache()
+                torch.random.set_rng_state(cpu_rng)
+                torch.mps.set_rng_state(mps_rng)
+                logging.warning("Larger MPS VAE decode ran out of memory; retrying with bounded tiles.")
         return nodes.VAEDecodeTiled().decode(
             vae, samples, tile_size=512, overlap=64,
             temporal_size=64, temporal_overlap=16)
@@ -222,7 +353,8 @@ class HappyLatentDecode:
 class HappyLatentTrimFrames:
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"images": ("IMAGE",), "frames": ("INT", {"min": 1, "max": 3600, "default": 49})}}
+        return {"required": {"images": ("IMAGE",), "frames": ("INT", {"min": 1, "max": 3600, "default": 49})},
+                "optional": {"pad_last_frame": ("BOOLEAN", {"default": False})}}
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "trim"
@@ -230,8 +362,11 @@ class HappyLatentTrimFrames:
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
-    def trim(self, images, frames):
+    def trim(self, images, frames, pad_last_frame=False):
         if len(images) < frames:
+            if pad_last_frame and len(images) > 0 and len(images) == frames - 1:
+                import torch
+                return (torch.cat((images, images[-1:]), dim=0),)
             raise ValidationError(f"Model returned {len(images)} frames; {frames} were required.")
         return (images[:frames].clone(),)
 
@@ -301,7 +436,7 @@ class HappyLatentImageCrop:
 class HappyLatentSceneVideo:
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"images": ("IMAGE",), "fps": ("INT", {"min": 1, "max": 60, "default": 24})}}
+        return {"required": {"images": ("IMAGE",), "fps": ("INT", {"min": 1, "max": 120, "default": 24})}}
 
     RETURN_TYPES = ("VIDEO",)
     FUNCTION = "encode"
@@ -410,8 +545,16 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "HappyLatentAudioMix": "HappyLatent: Complete Soundtrack",
 }
 
+from .temporal import TEMPORAL_NODE_CLASSES
+for _node in TEMPORAL_NODE_CLASSES:
+    NODE_CLASS_MAPPINGS[_node.__name__] = _node
+    NODE_DISPLAY_NAME_MAPPINGS[_node.__name__] = _node.__name__
+
 try:
     from .audio_nodes import native_mix_node
+    from .temporal import native_temporal_join_node
+    NODE_CLASS_MAPPINGS["HappyLatentTemporalJoin"] = native_temporal_join_node()
+    NODE_DISPLAY_NAME_MAPPINGS["HappyLatentTemporalJoin"] = "HappyLatent: Join Refined Windows"
     NODE_CLASS_MAPPINGS["HappyLatentAudioMix"] = native_mix_node()
 except ModuleNotFoundError as error:
     if error.name != "comfy_api":

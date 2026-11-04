@@ -24,9 +24,23 @@ export function mountHappyLatentVideo(container, options = {}) {
     <section class="global-settings" aria-label="Global settings">
       <div class="global-settings-main">
         <label class="field-label global-prompt-field"><span class="global-prompt-label">Global prompt<span class="section-scope">All clips</span></span><textarea class="global-prompt" data-testid="global-prompt" aria-label="Global prompt" maxlength="16000" rows="2"></textarea></label>
-        <div class="settings-grid global-settings-grid"><label>Width (px)<input class="width" type="number" min="64" max="4096" step="32" aria-label="Output width"></label><label>Height (px)<input class="height" type="number" min="64" max="4096" step="32" aria-label="Output height"></label><label title="Frames per second, shared by all clips">Frame rate<input class="fps" type="number" min="1" max="60" step="1" aria-label="Frame rate"></label><label>Seed<input class="seed" type="number" min="0" max="9007199254740991" step="1" aria-label="Seed"></label></div>
+        <div class="settings-grid global-settings-grid"><label>Width (px)<input class="width" type="number" min="64" max="4096" step="32" aria-label="Output width"></label><label>Height (px)<input class="height" type="number" min="64" max="4096" step="32" aria-label="Output height"></label><label title="Frames per second, shared by all clips">Frame rate<input class="fps" type="number" min="1" max="60" step="1" aria-label="Frame rate"></label><label>Seed<input class="seed" type="number" min="0" max="9007199254740991" step="1" aria-label="Seed"></label>
+        </div>
       </div>
       <p class="inline-feedback settings-feedback" data-testid="settings-feedback" id="${editorId}-settings-feedback" role="alert" hidden></p>
+    </section>
+    <section class="upscale-settings" data-testid="upscale-settings" aria-label="Upscaling" hidden>
+      <div class="upscale-grid">
+        <div class="upscale-control spatial-upscale-control" hidden><button type="button" class="upscale-toggle spatial-upscale" role="checkbox" aria-checked="false" aria-label="Enable spatial upscale"><span class="upscale-check" aria-hidden="true"></span>Spatial upscale<span class="upscale-factor">2× size</span></button></div>
+        <div class="upscale-control temporal-upscale-control" hidden><button type="button" class="upscale-toggle temporal-upscale" role="checkbox" aria-checked="false" aria-label="Enable temporal upscale"><span class="upscale-check" aria-hidden="true"></span>Temporal upscale<span class="upscale-factor">2× fps</span></button></div>
+      </div>
+      <p class="upscale-output" data-testid="upscale-output" role="status" aria-live="polite"></p>
+      <p class="upscale-controls-linked upscale-linked" hidden>Enable controls come from a connected input.</p>
+    </section>
+    <section class="refine-settings" data-testid="refine-settings" aria-label="Refinement">
+      <button type="button" class="upscale-toggle refine-output" role="checkbox" aria-checked="false" aria-label="Refine"><span class="upscale-check" aria-hidden="true"></span>Refine</button>
+      <p class="upscale-help refine-required" id="${editorId}-refine-required" data-testid="refine-required" hidden>Refinement is required when temporal upscaling is enabled.</p>
+      <p class="upscale-help refine-linked" id="${editorId}-refine-linked" hidden>Refinement is controlled by a connected input.</p>
     </section>
     <p class="inline-feedback audio-mode-feedback" data-testid="audio-mode-feedback" role="alert" hidden></p>
     <p class="inline-feedback scene-limit-feedback" data-testid="scene-limit-feedback" role="alert" hidden></p>
@@ -92,7 +106,7 @@ export function mountHappyLatentVideo(container, options = {}) {
             <div class="audio-guidance-control"><span class="audio-guidance-scope" data-testid="audio-guidance-scope" id="${editorId}-audio-guidance-scope"></span><button class="audio-guidance-label audio-guidance" data-testid="audio-guidance" type="button" role="checkbox" aria-checked="true"><span class="audio-guidance-check" aria-hidden="true"></span>Use audio to guide video</button><p class="audio-guidance-description" id="${editorId}-audio-guidance-description"></p></div>
             <div class="audio-coverage-details"><p class="audio-coverage" data-testid="audio-coverage"></p><div class="audio-coverage-bar" aria-hidden="true"></div><p class="audio-guidance-help" data-testid="audio-guidance-help" id="${editorId}-audio-guidance-help"></p></div>
           </div></div></details></div>
-          <div class="transport"><button class="icon-button" data-action="start" aria-label="Go to start" title="Go to start">|◀</button><button class="play-button" data-action="play" data-testid="play-toggle" aria-label="Play">▶</button><span class="playhead-time" data-testid="playhead-time">0:00.0</span><span class="total-time" data-testid="total-duration" aria-label="Total duration"></span><span class="timecode-format" title="Playback position and duration are shown as minutes:seconds.tenths"></span></div>
+          <div class="transport"><button class="icon-button" data-action="start" aria-label="Go to start" title="Go to start">|◀</button><button class="play-button" data-action="play" data-testid="play-toggle" aria-label="Play silent preview">▶</button><span class="playhead-time" data-testid="playhead-time">0:00.0</span><span class="total-time" data-testid="total-duration" aria-label="Total duration"></span><span class="timecode-format" title="Playback position and duration are shown as minutes:seconds.tenths"></span></div>
           <div class="timeline-toolbar"><button class="quiet-button" data-action="audio" data-testid="upload-timeline-audio">Upload audio</button><div class="timeline-zoom" role="group" aria-label="Timeline zoom controls"><button class="quiet-button" data-action="timeline-zoom-out" aria-label="Zoom out timeline" title="Zoom out">−</button><input class="timeline-zoom-range" type="range" min="-2" max="5" step="0.25" value="0" aria-label="Timeline zoom" aria-valuetext="100%"><button class="quiet-button" data-action="timeline-zoom-in" aria-label="Zoom in timeline" title="Zoom in">+</button><output class="timeline-zoom-value" aria-hidden="true">100%</output><button class="quiet-button" data-action="timeline-fit" aria-label="Fit timeline" title="Show all clips and audio">Fit</button></div></div>
           <div class="timeline-surface"><canvas class="timeline-canvas" data-testid="timeline" tabindex="0" role="slider" aria-label="Timeline position in frames" aria-valuemin="0" aria-valuenow="0"></canvas><input class="scene-name-input" data-testid="scene-name-input" aria-label="Clip name" maxlength="${MAX_SCENE_NAME_LENGTH}" hidden></div>
           <div class="timeline-scroll" data-testid="timeline-scroll" tabindex="0" role="region" aria-label="Scroll audio and video timeline"><div class="timeline-scroll-space"></div></div>
@@ -106,6 +120,13 @@ export function mountHappyLatentVideo(container, options = {}) {
     function q(selector) { const element = root.querySelector(selector); if (!element)
         throw new Error(`Missing editor element: ${selector}`); return element; }
     let project = readProject(options.project ?? newProject());
+    const copyUpscale = (value) => ({
+        ...value,
+        refineEnabled: Boolean(value.refineEnabled),
+        spatialEnabled: Boolean(value.spatialLinked && value.spatialEnabled),
+        temporalEnabled: Boolean(value.temporalLinked && value.temporalEnabled),
+    });
+    let upscale = copyUpscale(options.upscale ?? { spatialEnabled: false, temporalEnabled: false, spatialLinked: false, temporalLinked: false });
     const validateEdit = (next) => {
         const parsed = validateProjectEdit(next, project);
         const reflowed = reflowSceneAudio(parsed, project);
@@ -884,6 +905,37 @@ export function mountHappyLatentVideo(container, options = {}) {
         if (input.value !== renameDraft)
             input.value = renameDraft;
     }
+    function renderUpscale() {
+        q(".upscale-settings").hidden = !upscale || !(upscale.spatialLinked || upscale.temporalLinked);
+        const refine = q(".refine-output");
+        const required = upscale.temporalEnabled;
+        refine.setAttribute("aria-checked", String(required || upscale.refineEnabled));
+        refine.disabled = required || Boolean(upscale.refineLinked);
+        q(".refine-required").hidden = !required;
+        q(".refine-linked").hidden = required || !upscale.refineLinked;
+        if (required || upscale.refineLinked)
+            refine.setAttribute("aria-describedby", `${editorId}-refine-${required ? "required" : "linked"}`);
+        else
+            refine.removeAttribute("aria-describedby");
+        for (const kind of ["spatial", "temporal"]) {
+            const enabled = upscale[`${kind}Enabled`], linked = upscale[`${kind}Linked`];
+            q(`.${kind}-upscale-control`).hidden = !linked;
+            const toggle = q(`.${kind}-upscale`);
+            toggle.setAttribute("aria-checked", String(enabled));
+            toggle.disabled = !linked || Boolean(upscale.controlsLinked);
+        }
+        q(".upscale-output").textContent = upscale.controlsLinked
+            ? "Output size and frame rate follow connected inputs."
+            : `Output: ${project.width * (upscale.spatialEnabled ? 2 : 1)} × ${project.height * (upscale.spatialEnabled ? 2 : 1)} · ${project.fps * (upscale.temporalEnabled ? 2 : 1)} fps`;
+        q(".upscale-controls-linked").hidden = !upscale.controlsLinked;
+    }
+    function updateUpscale(value) {
+        if (!upscale || disposed)
+            return;
+        upscale = copyUpscale({ ...upscale, ...value });
+        renderUpscale();
+        options.onUpscaleChange?.(copyUpscale(upscale));
+    }
     function render(resetDrafts = false) {
         if (resetDrafts)
             for (const input of root.querySelectorAll(".global-prompt, .scene-prompt")) {
@@ -950,6 +1002,7 @@ export function mountHappyLatentVideo(container, options = {}) {
         setNumber(".seed", String(project.seed));
         q(".seed").max = String(Number.MAX_SAFE_INTEGER);
         renderSampling();
+        renderUpscale();
         q(".scene-settings").hidden = !hasImages(scene);
         setNumber(".image-strength", String(frameStrength(scene, sceneSlot(scene))));
         q(".image-strength-label").textContent = "Strength";
@@ -1382,6 +1435,16 @@ export function mountHappyLatentVideo(container, options = {}) {
                 failure(error, target);
             }
         }, events);
+    for (const kind of ["spatial", "temporal"]) {
+        q(`.${kind}-upscale`).addEventListener("click", () => {
+            if (upscale?.[`${kind}Linked`] && !upscale.controlsLinked)
+                updateUpscale({ [`${kind}Enabled`]: !upscale[`${kind}Enabled`] });
+        }, events);
+    }
+    q(".refine-output").addEventListener("click", () => {
+        if (!upscale.temporalEnabled && !upscale.refineLinked)
+            updateUpscale({ refineEnabled: !upscale.refineEnabled });
+    }, events);
     q(".audio-guidance").addEventListener("click", event => {
         const control = event.currentTarget, enabled = !sceneUsesAudioGuidance(selected()), id = selected().id;
         if (control.disabled || !finishAudioDraft() || !finishTextDrafts() || !finishSceneDrafts()) {
@@ -1773,6 +1836,10 @@ export function mountHappyLatentVideo(container, options = {}) {
         setModelProfile(profile) { if (!disposed) {
             modelProfile = { ...profile };
             renderSampling();
+        } },
+        setUpscaleSettings(value) { if (!disposed) {
+            upscale = copyUpscale(value);
+            renderUpscale();
         } },
         setGenerationStatus,
         flushPendingEdits,

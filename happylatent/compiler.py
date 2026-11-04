@@ -1,4 +1,4 @@
-"""Pure project-to-ComfyUI expansion; models are links supplied by the workflow."""
+"""Pure project-to-ComfyUI expansion; model weights are loaded by native nodes."""
 from __future__ import annotations
 
 import json
@@ -6,12 +6,61 @@ import json
 from .project import ValidationError, assemble_scene_prompt, get_image_strength, get_sampling, model_length, scene_ranges, validate_generation_audio, validate_project
 from .audio_plan import audio_regions, conditioning_regions, frame_sample, scene_audio_plan
 from .sampling import resolve_sampling_preset
+from .temporal import TEMPORAL_SIGMAS, compile_temporal_refinement
 
-# ComfyUI's distilled video schedule. One stage, without an upscaler.
+# ComfyUI's distilled base-generation schedule.
 DISTILLED_SIGMAS = "1, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0"
+# Conservative standalone polish uses only the final distilled denoising step.
+REFINE_SIGMAS = "0.421875, 0"
+UPSCALE_SIGMAS = "0.85, 0.7250, 0.4219, 0.0"
+UPSCALE_MODES = ("spatial", "temporal", "spatial+temporal")
+SPATIAL_UPSCALE_MODEL_NAME = "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+TEMPORAL_UPSCALE_MODEL_NAME = "ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors"
+NO_UPSCALE_MODEL = "none"
 
 
-def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", prompt=None):
+def validate_upscale_options(upscale_enabled, upscale_model, upscale_mode="spatial", temporal_upscale_model=None,
+                             spatial_upscale_model_name=NO_UPSCALE_MODEL, temporal_upscale_model_name=NO_UPSCALE_MODEL,
+                             available_model_names=None):
+    if not isinstance(upscale_enabled, bool):
+        raise ValidationError("Upscale 2x must be on or off.")
+    if upscale_mode not in UPSCALE_MODES:
+        raise ValidationError("Upscale mode must be spatial, temporal, or spatial+temporal.")
+    if not upscale_enabled:
+        return
+    selected = []
+    if upscale_mode in ("spatial", "spatial+temporal"):
+        selected.append(("upscale_model", "spatial", upscale_model, spatial_upscale_model_name))
+    if upscale_mode in ("temporal", "spatial+temporal"):
+        selected.append(("temporal_upscale_model", "temporal", temporal_upscale_model, temporal_upscale_model_name))
+    for name, kind, link, filename in selected:
+        if link is not None:
+            if (not isinstance(link, list) or len(link) != 2
+                or not isinstance(link[0], str) or not link[0]
+                or isinstance(link[1], bool) or not isinstance(link[1], int) or link[1] < 0):
+                raise ValidationError(f"Connect the {name} input to a valid LTX 2.5 {kind} 2x latent upscaler loader.")
+            # Existing workflows may supply any compatible model through a
+            # raw link. That explicit connection overrides the filename widget.
+            continue
+        if not isinstance(filename, str) or not filename.strip() or filename == NO_UPSCALE_MODEL:
+            raise ValidationError(f"Connect the {name} input or select a {kind} upscale model, or turn {kind} upscaling off.")
+        basename = filename.replace("\\", "/").rsplit("/", 1)[-1].lower()
+        wrong_official = TEMPORAL_UPSCALE_MODEL_NAME if kind == "spatial" else SPATIAL_UPSCALE_MODEL_NAME
+        if basename == wrong_official.lower():
+            raise ValidationError(f"The selected model is the official {'temporal' if kind == 'spatial' else 'spatial'} upscaler. Select a {kind} upscale model.")
+        if available_model_names is not None and filename not in available_model_names:
+            raise ValidationError(f"The selected {kind} upscale model is unavailable: {filename}. Install it in latent_upscale_models or select another model.")
+
+
+def validate_refine_options(refine_enabled):
+    if refine_enabled is not None and not isinstance(refine_enabled, bool):
+        raise ValidationError("Refine output must be on or off.")
+
+
+def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", prompt=None,
+                    upscale_enabled=False, upscale_model=None, upscale_mode="spatial", temporal_upscale_model=None,
+                    spatial_upscale_model_name=NO_UPSCALE_MODEL, temporal_upscale_model_name=NO_UPSCALE_MODEL,
+                    refine_enabled=None):
     """Return (expanded graph, VIDEO link), leaving external links untouched.
 
     The caller provides a ComfyUI GraphBuilder prefix to isolate each expansion.
@@ -20,6 +69,16 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
     """
     project = validate_project(project)
     validate_generation_audio(project)
+    validate_upscale_options(upscale_enabled, upscale_model, upscale_mode, temporal_upscale_model,
+                             spatial_upscale_model_name, temporal_upscale_model_name)
+    validate_refine_options(refine_enabled)
+    spatial_upscale = upscale_enabled and upscale_mode in ("spatial", "spatial+temporal")
+    temporal_upscale = upscale_enabled and upscale_mode in ("temporal", "spatial+temporal")
+    # Missing legacy API values retain the former spatial-refine behavior.
+    # Temporal modes require both their temporal pass and any spatial pre-pass.
+    spatial_refine = spatial_upscale and (refine_enabled is not False or temporal_upscale)
+    standalone_refine = refine_enabled is True and not (spatial_upscale or temporal_upscale)
+    output_fps = project["fps"] * (2 if temporal_upscale else 1)
     for name, link in (("model", model), ("clip", clip), ("video_vae", video_vae), ("audio_vae", audio_vae)):
         if (not isinstance(link, list) or len(link) != 2 or not isinstance(link[0], str)
                 or isinstance(link[1], bool) or not isinstance(link[1], int) or link[1] < 0):
@@ -38,8 +97,21 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
         }}
         return [identifier, 0]
 
+    # One shared loader per selected stage, created only when no legacy model
+    # link overrides it. OFF never produces either loader or requires a filename.
+    if spatial_upscale and upscale_model is None:
+        upscale_model = node("upscale_model_loader", "LatentUpscaleModelLoader", model_name=spatial_upscale_model_name)
+    if temporal_upscale and temporal_upscale_model is None:
+        temporal_upscale_model = node("temporal_upscale_model_loader", "LatentUpscaleModelLoader", model_name=temporal_upscale_model_name)
+
     samplers = {}
     distilled_sigmas = None
+    upscale_sampler = None
+    upscale_sigmas = None
+    temporal_sampler = None
+    temporal_sigmas = None
+    refine_sampler = None
+    refine_sigmas = None
     videos = []
     generated_audio = {}
     generated_plan = []
@@ -119,6 +191,7 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
             latent = video
         sampled = scene_node("sample", "SamplerCustom", model=model, add_noise=True, noise_seed=(project["seed"] + index) % (2**53), cfg=sampling["cfg"], positive=positive, negative=negative, sampler=sampler, sigmas=sigmas, latent_image=latent)
         video = scene_node("separate", "LTXVSeparateAVLatent", av_latent=sampled) if uses_audio_latent else sampled
+        temporal_source_audio = [video[0], 1] if uses_audio_latent else None
         if generated:
             key = f"audio{index}"
             generated_audio[f"generated.{key}"] = scene_node("audio_decode", "LTXVAudioVAEDecode",
@@ -127,9 +200,68 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
         if scene.get("endImage"):
             cropped = scene_node("crop_guides", "LTXVCropGuides", positive=positive, negative=negative, latent=video)
             video = [cropped[0], 2]
+            positive, negative = cropped, [cropped[0], 1]
+        if spatial_upscale:
+            # Keep generation and audio nodes unchanged so the same scene
+            # latents can be reused when the output resolution is toggled.
+            video = scene_node("upscale", "LTXVLatentUpsampler", samples=video,
+                               upscale_model=upscale_model, vae=video_vae)
+            if spatial_refine:
+                if upscale_sampler is None:
+                    upscale_sampler = node("upscale_sampler", "KSamplerSelect", sampler_name="euler_ancestral")
+                    upscale_sigmas = node("upscale_schedule", "ManualSigmas", sigmas=UPSCALE_SIGMAS)
+                guider = scene_node("upscale_guider", "LTXVDualCFGGuider", model=model,
+                                    positive=positive, negative=negative, video_cfg=1.0, audio_cfg=1.0)
+                noise = scene_node("upscale_noise", "RandomNoise", noise_seed=(project["seed"] + index + 1) % (2**53))
+                video = scene_node("upscale_refine", "SamplerCustomAdvanced", noise=noise, guider=guider,
+                                   sampler=upscale_sampler, sigmas=upscale_sigmas, latent_image=video)
+        if standalone_refine:
+            # A conservative same-canvas pass, independent of all upscaler inputs.
+            # The base graph and final soundtrack retain their original ancestry.
+            if refine_sampler is None:
+                refine_sampler = node("refine_sampler", "KSamplerSelect", sampler_name="euler")
+                refine_sigmas = node("refine_schedule", "ManualSigmas", sigmas=REFINE_SIGMAS)
+            if scene.get("endImage"):
+                guide = scene_node("refine_end_guide", "LTXVAddGuide", positive=positive, negative=negative,
+                    vae=video_vae, latent=video, image=[prefix + stem + "end_crop", 0],
+                    frame_idx=scene["durationFrames"] - 1, strength=get_image_strength(project, scene, "last"))
+                positive, negative, video = guide, [guide[0], 1], [guide[0], 2]
+            if temporal_source_audio is not None:
+                frozen = scene_node("refine_audio", "HappyLatentFreezeAudioLatent", latent=temporal_source_audio)
+                video = scene_node("refine_av", "LTXVConcatAVLatent", video_latent=video, audio_latent=frozen)
+            guider = scene_node("refine_guider", "LTXVDualCFGGuider", model=model,
+                positive=positive, negative=negative, video_cfg=sampling["cfg"], audio_cfg=1.0)
+            noise = scene_node("refine_noise", "RandomNoise", noise_seed=(project["seed"] + index + 2000) % (2**53))
+            video = scene_node("refine", "SamplerCustomAdvanced", noise=noise, guider=guider,
+                sampler=refine_sampler, sigmas=refine_sigmas, latent_image=video)
+            if temporal_source_audio is not None:
+                video = scene_node("refine_separate", "LTXVSeparateAVLatent", av_latent=video)
+            if scene.get("endImage"):
+                crop = scene_node("refine_crop_guides", "LTXVCropGuides", positive=positive, negative=negative, latent=video)
+                video = [crop[0], 2]
+        if temporal_upscale:
+            # Raw temporal interpolation is an intermediate. Always refine with
+            # frozen source-frame guides and carried window prefixes. This is a
+            # source-preserving DFR adaptation, not the complete DFR pipeline.
+            if temporal_sampler is None:
+                temporal_sampler = node("temporal_sampler", "SamplerEulerAncestral", eta=0.5, s_noise=1.0)
+                temporal_sigmas = node("temporal_schedule", "ManualSigmas", sigmas=TEMPORAL_SIGMAS)
+            source = video
+            upscaled = scene_node("temporal_upscale", "LTXVLatentUpsampler", samples=source,
+                                  upscale_model=temporal_upscale_model, vae=video_vae)
+            video = compile_temporal_refinement(scene_node, source=source, upscaled=upscaled,
+                source_audio=temporal_source_audio, source_frames=length, fps=project["fps"],
+                seed=(project["seed"] + index) % 2**53,
+                positive=[prefix + stem + "positive", 0], negative=[prefix + stem + "negative", 0],
+                model=model, vae=video_vae, sampler=temporal_sampler, sigmas=temporal_sigmas)
         images = scene_node("decode", "HappyLatentDecode", samples=video, vae=video_vae)
-        images = scene_node("trim", "HappyLatentTrimFrames", images=images, frames=scene["durationFrames"])
-        videos.append(scene_node("video", "HappyLatentSceneVideo", images=images, fps=project["fps"]))
+        trim_options = {"frames": scene["durationFrames"]}
+        if temporal_upscale:
+            # Temporal upsampling decodes to 2*model_length-1 frames. A scene
+            # already on the 8k+1 grid needs one final hold frame for exact duration.
+            trim_options = {"frames": 2 * scene["durationFrames"], "pad_last_frame": True}
+        images = scene_node("trim", "HappyLatentTrimFrames", images=images, **trim_options)
+        videos.append(scene_node("video", "HappyLatentSceneVideo", images=images, fps=output_fps))
 
     inputs = {f"videos.video{index}": video for index, video in enumerate(videos)}
     regions = audio_regions(project)

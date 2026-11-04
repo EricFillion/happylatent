@@ -65,11 +65,12 @@
 .happylatent .preview-crop-frame.is-movable { pointer-events: auto; touch-action: none; cursor: grab; }
 .happylatent .preview-crop-frame.is-cropping { cursor: grabbing; }
 .happylatent .preview-crop-frame:focus-visible { outline: 2px solid var(--text); outline-offset: -4px; }
-.happylatent .crop-handle { position: absolute; width: 20px; height: 20px; min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 3px; background: transparent; pointer-events: auto; touch-action: none; z-index: 2; }
-.happylatent .crop-handle[data-crop-handle="nw"] { top: -5px; left: -5px; cursor: nwse-resize; }
-.happylatent .crop-handle[data-crop-handle="ne"] { top: -5px; right: -5px; cursor: nesw-resize; }
-.happylatent .crop-handle[data-crop-handle="sw"] { bottom: -5px; left: -5px; cursor: nesw-resize; }
-.happylatent .crop-handle[data-crop-handle="se"] { bottom: -5px; right: -5px; cursor: nwse-resize; }
+/* Leave a draggable center even when a portrait or resized crop is tiny. */
+.happylatent .crop-handle { position: absolute; width: min(20px, 40%); height: min(20px, 40%); min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 3px; background: transparent; pointer-events: auto; touch-action: none; z-index: 2; }
+.happylatent .crop-handle[data-crop-handle="nw"] { top: 0; left: 0; transform: translate(-25%, -25%); cursor: nwse-resize; }
+.happylatent .crop-handle[data-crop-handle="ne"] { top: 0; right: 0; transform: translate(25%, -25%); cursor: nesw-resize; }
+.happylatent .crop-handle[data-crop-handle="sw"] { bottom: 0; left: 0; transform: translate(-25%, 25%); cursor: nesw-resize; }
+.happylatent .crop-handle[data-crop-handle="se"] { bottom: 0; right: 0; transform: translate(25%, 25%); cursor: nwse-resize; }
 .happylatent .crop-handle:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .happylatent .preview-image-actions { display: flex; flex: none; justify-content: flex-end; gap: 4px; margin-left: auto; font-size: 13px; }
 .happylatent .timeline-panel { display: grid; grid-template-columns: 1fr auto; background: var(--input); border: 1px solid var(--border); border-radius: 7px; margin: 2px 18px 12px; flex: none; }
@@ -201,7 +202,7 @@
 .happylatent .section-heading strong { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; font-weight: 650; }
 .happylatent .section-scope { flex: none; color: var(--muted); font-size: 13px; font-weight: 400; }
 .happylatent .inspector .section-heading strong { color: #ffd3db; }
-.happylatent .crop-handle::after { content: ""; position: absolute; inset: 4px; border: 1px solid #fff; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 1px #000b; }
+.happylatent .crop-handle::after { content: ""; position: absolute; inset: 20%; border: 1px solid #fff; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 1px #000b; }
 .happylatent .crop-handle:hover::after { background: var(--selection-border); }
 .happylatent [data-action="remove-image"]:hover { color: #ffd0d7; border-color: #ba6676; background: #48242d; }
 .happylatent .play-button:hover:not(:disabled) { background: #d13d54; }
@@ -328,3 +329,20 @@
 @container (min-width: 1100px) {
   .happylatent .global-settings-main, .happylatent .scene-fields, .happylatent .audio-layout { grid-template-columns: minmax(0, 1fr) 400px; }
 }
+
+
+/* Upscaling belongs to the node output; timeline resolution and timing stay editable above. */
+.happylatent .upscale-settings, .happylatent .refine-settings { flex: none; min-width: 0; padding: 8px 18px; border-bottom: 1px solid var(--border); background: #1b181b; }
+.happylatent .upscale-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+.happylatent .upscale-control { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 4px; min-width: 0; }
+.happylatent .upscale-toggle { display: flex; align-items: center; gap: 7px; padding: 0; border: 0; background: transparent; font-size: 14px; font-weight: 500; text-align: left; }
+.happylatent .upscale-factor { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 400; white-space: nowrap; }
+.happylatent .upscale-check { display: grid; place-content: center; flex: none; width: 16px; height: 16px; border: 1px solid var(--control-border); border-radius: 3px; background: var(--input); }
+.happylatent .upscale-toggle[aria-checked="true"] .upscale-check { background: var(--accent); border-color: var(--accent); }
+.happylatent .upscale-toggle[aria-checked="true"] .upscale-check::after { content: ""; width: 8px; height: 4px; border-left: 2px solid var(--text); border-bottom: 2px solid var(--text); transform: translateY(-1px) rotate(-45deg); }
+.happylatent .upscale-output, .happylatent .upscale-linked, .happylatent .upscale-help { color: var(--muted); font-size: 12px; line-height: 16px; overflow-wrap: anywhere; }
+.happylatent .upscale-output { margin-top: 5px; font-variant-numeric: tabular-nums; }
+
+.happylatent .refine-settings .upscale-help { margin-top: 4px; }
+.happylatent .refine-output:disabled { opacity: 1; cursor: default; }
+
