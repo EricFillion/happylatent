@@ -1,0 +1,6 @@
+# Exclude local editor and build artifacts from the Registry package.
+.idea/
+node_modules/
+__pycache__/
+*.py[cod]
+web/*.js.map

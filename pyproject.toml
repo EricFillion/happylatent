@@ -1,6 +1,8 @@
 [project]
 name = "happylatent"
-version = "0.0.2"
+version = "0.0.3"
+readme = "README.md"
+requires-python = ">=3.11"
 description = "Video editor for LTX 2.5"
 license = { file = "LICENSE" }
 
@@ -10,3 +12,4 @@ Repository = "https://github.com/EricFillion/happylatent"
 [tool.comfy]
 PublisherId = "ericfillion"
 DisplayName = "HappyLatent"
+includes = ["web"]

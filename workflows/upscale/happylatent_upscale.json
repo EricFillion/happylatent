@@ -1,0 +1,431 @@
+{
+  "id": "60a9c39c-8661-4278-b7b9-ba6f1e15e5b9",
+  "revision": 0,
+  "last_node_id": 8,
+  "last_link_id": 7,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "UNETLoader",
+      "pos": [
+        0,
+        20
+      ],
+      "size": [
+        440,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "title": "UNETLoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "default"
+      ],
+      "widgets_values_named": {
+        "unet_name": "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    {
+      "id": 2,
+      "type": "CLIPLoader",
+      "pos": [
+        0,
+        180
+      ],
+      "size": [
+        440,
+        120
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2
+          ]
+        }
+      ],
+      "title": "CLIPLoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "CLIPLoader"
+      },
+      "widgets_values": [
+        "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+        "ltxv",
+        "default"
+      ],
+      "widgets_values_named": {
+        "clip_name": "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+        "type": "ltxv",
+        "device": "default"
+      }
+    },
+    {
+      "id": 3,
+      "type": "VAELoader",
+      "pos": [
+        0,
+        360
+      ],
+      "size": [
+        440,
+        90
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "title": "VAELoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ltx-2.5-video-vae-conv-bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "ltx-2.5-video-vae-conv-bf16.safetensors"
+      }
+    },
+    {
+      "id": 4,
+      "type": "VAELoader",
+      "pos": [
+        0,
+        510
+      ],
+      "size": [
+        440,
+        90
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "title": "VAELoader",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "ltx-2.5-audio-vae-bf16.safetensors"
+      ],
+      "widgets_values_named": {
+        "vae_name": "ltx-2.5-audio-vae-bf16.safetensors"
+      }
+    },
+    {
+      "id": 5,
+      "type": "HappyLatentVideo",
+      "pos": [
+        520,
+        20
+      ],
+      "size": [
+        1200,
+        1180
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        },
+        {
+          "name": "video_vae",
+          "type": "VAE",
+          "link": 3
+        },
+        {
+          "name": "audio_vae",
+          "type": "VAE",
+          "link": 4
+        },
+        {
+          "name": "upscale_model",
+          "type": "LATENT_UPSCALE_MODEL",
+          "link": 6
+        },
+        {
+          "name": "temporal_upscale_model",
+          "type": "LATENT_UPSCALE_MODEL",
+          "link": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "EricFillion/happylatent",
+        "ver": "0.0.3",
+        "Node name for S&R": "HappyLatentVideo",
+        "cnr_id": "happylatent"
+      },
+      "widgets_values": [
+        "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":120,\"audioMode\":\"generated\"},{\"id\":\"scene-2\",\"name\":\"Butterfly\",\"prompt\":\"A close-up of a butterfly resting on a flower. It slowly opens and closes its wings while the flower sways gently. The camera stays steady, with soft birdsong in the background.\",\"durationFrames\":120,\"audioMode\":\"generated\"}],\"seed\":42,\"audioSegments\":[{\"id\":\"audio-6a73382-17\",\"startFrame\":0,\"endFrame\":120,\"kind\":\"generate\"},{\"id\":\"audio-5a731ef-17\",\"startFrame\":120,\"endFrame\":240,\"kind\":\"generate\"}],\"samplingPreset\":\"auto\"}",
+        true,
+        "spatial",
+        "none",
+        "none",
+        false
+      ],
+      "widgets_values_named": {
+        "project": "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":120,\"audioMode\":\"generated\"},{\"id\":\"scene-2\",\"name\":\"Butterfly\",\"prompt\":\"A close-up of a butterfly resting on a flower. It slowly opens and closes its wings while the flower sways gently. The camera stays steady, with soft birdsong in the background.\",\"durationFrames\":120,\"audioMode\":\"generated\"}],\"seed\":42,\"audioSegments\":[{\"id\":\"audio-6a73382-17\",\"startFrame\":0,\"endFrame\":120,\"kind\":\"generate\"},{\"id\":\"audio-5a731ef-17\",\"startFrame\":120,\"endFrame\":240,\"kind\":\"generate\"}],\"samplingPreset\":\"auto\"}",
+        "upscale_enabled": true,
+        "upscale_mode": "spatial",
+        "spatial_upscale_model_name": "none",
+        "temporal_upscale_model_name": "none",
+        "refine_enabled": false
+      }
+    },
+    {
+      "id": 6,
+      "type": "SaveVideo",
+      "pos": [
+        1780,
+        20
+      ],
+      "size": [
+        560,
+        620
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": null
+        }
+      ],
+      "title": "SaveVideo",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0"
+      },
+      "widgets_values": [
+        "happylatent/video",
+        "mp4",
+        "auto",
+        "auto"
+      ],
+      "widgets_values_named": {
+        "filename_prefix": "happylatent/video",
+        "format": "mp4",
+        "format.codec": "auto",
+        "codec": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "type": "LatentUpscaleModelLoader",
+      "pos": [
+        0,
+        680
+      ],
+      "size": [
+        440,
+        90
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT_UPSCALE_MODEL",
+          "type": "LATENT_UPSCALE_MODEL",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "title": "Spatial 2x upscale",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "LatentUpscaleModelLoader"
+      },
+      "widgets_values": [
+        "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+      ],
+      "widgets_values_named": {
+        "model_name": "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
+      }
+    },
+    {
+      "id": 8,
+      "type": "LatentUpscaleModelLoader",
+      "pos": [
+        0,
+        850
+      ],
+      "size": [
+        440,
+        90
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT_UPSCALE_MODEL",
+          "type": "LATENT_UPSCALE_MODEL",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "title": "Temporal 2x upscale",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.43.0",
+        "Node name for S&R": "LatentUpscaleModelLoader"
+      },
+      "widgets_values": [
+        "ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors"
+      ],
+      "widgets_values_named": {
+        "model_name": "ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors"
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      2,
+      0,
+      5,
+      1,
+      "CLIP"
+    ],
+    [
+      3,
+      3,
+      0,
+      5,
+      2,
+      "VAE"
+    ],
+    [
+      4,
+      4,
+      0,
+      5,
+      3,
+      "VAE"
+    ],
+    [
+      5,
+      5,
+      0,
+      6,
+      0,
+      "VIDEO"
+    ],
+    [
+      6,
+      7,
+      0,
+      5,
+      4,
+      "LATENT_UPSCALE_MODEL"
+    ],
+    [
+      7,
+      8,
+      0,
+      5,
+      5,
+      "LATENT_UPSCALE_MODEL"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.48,
+      "offset": [
+        70,
+        70
+      ]
+    },
+    "frontendVersion": "1.57.4"
+  },
+  "version": 0.4
+}
