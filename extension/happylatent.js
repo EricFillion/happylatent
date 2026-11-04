@@ -75,12 +75,12 @@ app.registerExtension({
     function changeUpscale(value) {
       const current = upscaleSettings();
       if (!current) return;
-      if (current.controlsLinked && (current.refineLinked || current.temporalEnabled || !upscaleWidgets.refine_enabled || typeof value.refineEnabled !== "boolean" || current.refineEnabled === value.refineEnabled)) return;
+      if (current.controlsLinked && (current.refineLinked || current.spatialEnabled || current.temporalEnabled || !upscaleWidgets.refine_enabled || typeof value.refineEnabled !== "boolean" || current.refineEnabled === value.refineEnabled)) return;
       if (!current.controlsLinked) persistUpscale(Boolean(current.spatialLinked && value.spatialEnabled), Boolean(current.temporalLinked && value.temporalEnabled));
       const refine = upscaleWidgets.refine_enabled;
-      // The widget retains the manual preference; temporal refinement is forced
+      // The widget retains the manual preference; upscale refinement is forced
       // by the backend and displayed as checked without overwriting that choice.
-      if (refine && !current.refineLinked && !current.temporalEnabled && typeof value.refineEnabled === "boolean" && refine.value !== value.refineEnabled) {
+      if (refine && !current.refineLinked && !current.spatialEnabled && !current.temporalEnabled && typeof value.refineEnabled === "boolean" && refine.value !== value.refineEnabled) {
         refine.value = value.refineEnabled;
         refine.callback?.(refine.value);
       }

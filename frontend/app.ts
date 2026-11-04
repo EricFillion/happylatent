@@ -55,7 +55,7 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
     </section>
     <section class="refine-settings" data-testid="refine-settings" aria-label="Refinement">
       <button type="button" class="upscale-toggle refine-output" role="checkbox" aria-checked="false" aria-label="Refine"><span class="upscale-check" aria-hidden="true"></span>Refine</button>
-      <p class="upscale-help refine-required" id="${editorId}-refine-required" data-testid="refine-required" hidden>Refinement is required when temporal upscaling is enabled.</p>
+      <p class="upscale-help refine-required" id="${editorId}-refine-required" data-testid="refine-required" hidden>Refinement is required when spatial or temporal upscaling is enabled.</p>
       <p class="upscale-help refine-linked" id="${editorId}-refine-linked" hidden>Refinement is controlled by a connected input.</p>
     </section>
     <p class="inline-feedback audio-mode-feedback" data-testid="audio-mode-feedback" role="alert" hidden></p>
@@ -715,7 +715,7 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
   function renderUpscale(): void {
     q(".upscale-settings").hidden = !upscale || !(upscale.spatialLinked || upscale.temporalLinked);
     const refine = q<HTMLButtonElement>(".refine-output");
-    const required = upscale.temporalEnabled;
+    const required = upscale.spatialEnabled || upscale.temporalEnabled;
     refine.setAttribute("aria-checked", String(required || upscale.refineEnabled));
     refine.disabled = required || Boolean(upscale.refineLinked);
     q(".refine-required").hidden = !required;
@@ -1042,7 +1042,7 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
     }, events);
   }
   q<HTMLButtonElement>(".refine-output").addEventListener("click", () => {
-    if (!upscale.temporalEnabled && !upscale.refineLinked) updateUpscale({ refineEnabled: !upscale.refineEnabled });
+    if (!upscale.spatialEnabled && !upscale.temporalEnabled && !upscale.refineLinked) updateUpscale({ refineEnabled: !upscale.refineEnabled });
   }, events);
   q<HTMLButtonElement>(".audio-guidance").addEventListener("click", event => {
     const control = event.currentTarget as HTMLButtonElement, enabled = !sceneUsesAudioGuidance(selected()), id = selected().id;

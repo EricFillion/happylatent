@@ -88,7 +88,7 @@ class HappyLatentVideo:
             "spatial_upscale_model_name": upscale_model_choices(names, SPATIAL_UPSCALE_MODEL_NAME),
             "temporal_upscale_model_name": upscale_model_choices(names, TEMPORAL_UPSCALE_MODEL_NAME),
             "refine_enabled": ("BOOLEAN", {"default": False,
-                "tooltip": "Refine the output with the connected generation model. Temporal upscaling always requires refinement."}),
+                "tooltip": "Refine the output with the connected generation model. Spatial and temporal upscaling always require refinement."}),
         }, "hidden": {"prompt": "PROMPT"}}
 
     RETURN_TYPES = ("VIDEO",)

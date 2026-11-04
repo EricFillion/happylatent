@@ -74,9 +74,9 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
     validate_refine_options(refine_enabled)
     spatial_upscale = upscale_enabled and upscale_mode in ("spatial", "spatial+temporal")
     temporal_upscale = upscale_enabled and upscale_mode in ("temporal", "spatial+temporal")
-    # Missing legacy API values retain the former spatial-refine behavior.
-    # Temporal modes require both their temporal pass and any spatial pre-pass.
-    spatial_refine = spatial_upscale and (refine_enabled is not False or temporal_upscale)
+    # Upscaling always requires refinement, including legacy/API requests
+    # with an explicit false manual preference.
+    spatial_refine = spatial_upscale
     standalone_refine = refine_enabled is True and not (spatial_upscale or temporal_upscale)
     output_fps = project["fps"] * (2 if temporal_upscale else 1)
     for name, link in (("model", model), ("clip", clip), ("video_vae", video_vae), ("audio_vae", audio_vae)):
