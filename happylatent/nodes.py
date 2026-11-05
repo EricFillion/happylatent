@@ -312,9 +312,12 @@ class HappyLatentDecode:
         import nodes
 
         device = getattr(getattr(vae, "device", None), "type", None)
-        # CUDA retains ComfyUI's native decoder and recognized OOM handling.
+        # Keep native decoding/OOM handling, bounding the LTX diffusion VAE's
+        # final normalization so large CUDA tensors cannot corrupt the tail.
         if device == "cuda":
-            return nodes.VAEDecode().decode(vae, samples)
+            from .decoder import bounded_ltx_cuda_normalization
+            with bounded_ltx_cuda_normalization(vae):
+                return nodes.VAEDecode().decode(vae, samples)
         if device == "mps" and self._mps_large_tile_fits(samples, vae):
             import gc
             import logging

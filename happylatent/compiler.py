@@ -13,6 +13,8 @@ DISTILLED_SIGMAS = "1, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.42187
 # Conservative standalone polish uses only the final distilled denoising step.
 REFINE_SIGMAS = "0.421875, 0"
 UPSCALE_SIGMAS = "0.85, 0.7250, 0.4219, 0.0"
+# I2V refinement preserves the sampled performance with source-frame guides.
+SPATIAL_SOURCE_SIGMAS = "0.421875, 0.0"
 UPSCALE_MODES = ("spatial", "temporal", "spatial+temporal")
 SPATIAL_UPSCALE_MODEL_NAME = "ltx-2.5-latent-spatial-upscaler-x2-bf16-1.0.safetensors"
 TEMPORAL_UPSCALE_MODEL_NAME = "ltx-2.5-latent-temporal-upscaler-x2-bf16-1.0.safetensors"
@@ -108,6 +110,7 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
     distilled_sigmas = None
     upscale_sampler = None
     upscale_sigmas = None
+    upscale_source_sigmas = None
     temporal_sampler = None
     temporal_sigmas = None
     refine_sampler = None
@@ -204,17 +207,61 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
         if spatial_upscale:
             # Keep generation and audio nodes unchanged so the same scene
             # latents can be reused when the output resolution is toggled.
+            spatial_source = video
             video = scene_node("upscale", "LTXVLatentUpsampler", samples=video,
                                upscale_model=upscale_model, vae=video_vae)
             if spatial_refine:
+                # Re-anchor I2V at the output resolution before adding noise.
+                # The upsampler does not preserve the original image mask.
+                if scene.get("image"):
+                    crop = scene.get("crop", {"x": 0.5, "y": 0.5})
+                    pixels = scene_node("upscale_crop", "HappyLatentImageCrop",
+                                        image=[prefix + stem + "frame", 0],
+                                        width=project["width"] * 2, height=project["height"] * 2, **crop)
+                    video = scene_node("upscale_image_conditioning", "LTXVImgToVideoInplace",
+                                       vae=video_vae, image=pixels, latent=video,
+                                       strength=get_image_strength(project, scene, "first"), bypass=False)
                 if upscale_sampler is None:
                     upscale_sampler = node("upscale_sampler", "KSamplerSelect", sampler_name="euler_ancestral")
-                    upscale_sigmas = node("upscale_schedule", "ManualSigmas", sigmas=UPSCALE_SIGMAS)
+                preserve_source = bool(scene.get("image"))
+                if preserve_source:
+                    if upscale_source_sigmas is None:
+                        upscale_source_sigmas = node("upscale_source_schedule", "ManualSigmas", sigmas=SPATIAL_SOURCE_SIGMAS)
+                    spatial_sigmas = upscale_source_sigmas
+                    # Opening-image guidance cannot constrain later expressions.
+                    # Guide the existing performance at one-second intervals and
+                    # its last authored frame, before any lossy video encoding.
+                    # At low FPS, avoid adding more than one guide per latent.
+                    stride = max(8, project["fps"])
+                    guide_frames = sorted(set(range(stride, scene["durationFrames"], stride)) |
+                                          ({scene["durationFrames"] - 1} if scene["durationFrames"] > 1 else set()))
+                    if guide_frames:
+                        decoded = scene_node("upscale_source_decode", "HappyLatentDecode", samples=spatial_source, vae=video_vae)
+                        for frame in guide_frames:
+                            pixels = scene_node(f"upscale_source_frame_{frame}", "ImageFromBatch",
+                                                image=decoded, batch_index=frame, length=1)
+                            guide = scene_node(f"upscale_source_guide_{frame}", "LTXVAddGuide",
+                                               positive=positive, negative=negative, latent=video,
+                                               vae=video_vae, image=pixels, frame_idx=frame, strength=1.0)
+                            positive, negative, video = guide, [guide[0], 1], [guide[0], 2]
+                    if temporal_source_audio is not None:
+                        frozen = scene_node("upscale_audio", "HappyLatentFreezeAudioLatent", latent=temporal_source_audio)
+                        video = scene_node("upscale_av", "LTXVConcatAVLatent", video_latent=video, audio_latent=frozen)
+                else:
+                    if upscale_sigmas is None:
+                        upscale_sigmas = node("upscale_schedule", "ManualSigmas", sigmas=UPSCALE_SIGMAS)
+                    spatial_sigmas = upscale_sigmas
                 guider = scene_node("upscale_guider", "LTXVDualCFGGuider", model=model,
                                     positive=positive, negative=negative, video_cfg=1.0, audio_cfg=1.0)
                 noise = scene_node("upscale_noise", "RandomNoise", noise_seed=(project["seed"] + index + 1) % (2**53))
                 video = scene_node("upscale_refine", "SamplerCustomAdvanced", noise=noise, guider=guider,
-                                   sampler=upscale_sampler, sigmas=upscale_sigmas, latent_image=video)
+                                   sampler=upscale_sampler, sigmas=spatial_sigmas, latent_image=video)
+                if preserve_source:
+                    if temporal_source_audio is not None:
+                        video = scene_node("upscale_separate", "LTXVSeparateAVLatent", av_latent=video)
+                    cropped = scene_node("upscale_crop_guides", "LTXVCropGuides",
+                                         positive=positive, negative=negative, latent=video)
+                    video = [cropped[0], 2]
         if standalone_refine:
             # A conservative same-canvas pass, independent of all upscaler inputs.
             # The base graph and final soundtrack retain their original ancestry.
