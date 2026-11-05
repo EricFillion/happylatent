@@ -36,7 +36,7 @@ export function bindPanelSplit(root, handle) {
         if (workspace.style.minHeight !== workspaceMinimum)
             workspace.style.minHeight = workspaceMinimum;
         root.classList.toggle("has-constrained-layout", room < minimum + 96);
-        const desired = preferredShare === undefined ? 160 : room * preferredShare;
+        const desired = preferredShare === undefined ? minimum : room * preferredShare;
         current = Math.round(Math.max(minimum, Math.min(maximum, desired)));
         if (canvas.style.height !== `${current}px`)
             canvas.style.height = `${current}px`;
