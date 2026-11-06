@@ -187,8 +187,13 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
             latent = scene_node("empty_audio", kind, frames_number=length, frame_rate=project["fps"], batch_size=1, audio_vae=audio_vae)
         if uses_audio_latent:
             authored_samples = frame_sample(item["endFrame"], project["fps"]) - frame_sample(item["startFrame"], project["fps"])
+            # Sample model-padding context too: frozen empty tail latents can
+            # contaminate decoded audio before the authored end. Final mixing
+            # still uses the original regions and exact requested sample count.
+            padding_context = {"authored_samples": authored_samples} if generated else {}
             audio_latent = scene_node("fixed_audio", "HappyLatentAudioMask", latent=latent,
-                                     plan=json.dumps(conditioning_regions(plan, authored_samples), sort_keys=True), audio_vae=audio_vae)
+                                     plan=json.dumps(conditioning_regions(plan, authored_samples), sort_keys=True),
+                                     audio_vae=audio_vae, **padding_context)
             latent = scene_node("av_latent", "LTXVConcatAVLatent", video_latent=video, audio_latent=audio_latent)
         else:
             latent = video
