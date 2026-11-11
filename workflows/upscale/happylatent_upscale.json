@@ -194,12 +194,16 @@
           "link": 4
         },
         {
+          "label": "spatial_upscaler",
           "name": "upscale_model",
+          "shape": 7,
           "type": "LATENT_UPSCALE_MODEL",
           "link": 6
         },
         {
+          "label": "temporal_upscaler",
           "name": "temporal_upscale_model",
+          "shape": 7,
           "type": "LATENT_UPSCALE_MODEL",
           "link": 7
         }
@@ -214,13 +218,13 @@
         }
       ],
       "properties": {
-        "aux_id": "EricFillion/happylatent",
+        "cnr_id": "happylatent",
         "ver": "0.0.3",
         "Node name for S&R": "HappyLatentVideo",
-        "cnr_id": "happylatent"
+        "aux_id": "EricFillion/happylatent"
       },
       "widgets_values": [
-        "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":120,\"audioMode\":\"generated\"},{\"id\":\"scene-2\",\"name\":\"Butterfly\",\"prompt\":\"A close-up of a butterfly resting on a flower. It slowly opens and closes its wings while the flower sways gently. The camera stays steady, with soft birdsong in the background.\",\"durationFrames\":120,\"audioMode\":\"generated\"}],\"seed\":42,\"audioSegments\":[{\"id\":\"audio-6a73382-17\",\"startFrame\":0,\"endFrame\":120,\"kind\":\"generate\"},{\"id\":\"audio-5a731ef-17\",\"startFrame\":120,\"endFrame\":240,\"kind\":\"generate\"}],\"samplingPreset\":\"auto\"}",
+        "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":48,\"audioMode\":\"generated\"}],\"seed\":42,\"audioSegments\":[{\"id\":\"audio-6a73382-17\",\"startFrame\":0,\"endFrame\":48,\"kind\":\"generate\"}],\"samplingPreset\":\"auto\"}",
         true,
         "spatial",
         "none",
@@ -228,7 +232,7 @@
         false
       ],
       "widgets_values_named": {
-        "project": "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":120,\"audioMode\":\"generated\"},{\"id\":\"scene-2\",\"name\":\"Butterfly\",\"prompt\":\"A close-up of a butterfly resting on a flower. It slowly opens and closes its wings while the flower sways gently. The camera stays steady, with soft birdsong in the background.\",\"durationFrames\":120,\"audioMode\":\"generated\"}],\"seed\":42,\"audioSegments\":[{\"id\":\"audio-6a73382-17\",\"startFrame\":0,\"endFrame\":120,\"kind\":\"generate\"},{\"id\":\"audio-5a731ef-17\",\"startFrame\":120,\"endFrame\":240,\"kind\":\"generate\"}],\"samplingPreset\":\"auto\"}",
+        "project": "{\"version\":3,\"id\":\"happylatent-project\",\"title\":\"Garden morning\",\"fps\":24,\"width\":1024,\"height\":576,\"globalPrompt\":\"A peaceful morning in a sunlit garden. Natural colors, soft golden light, and realistic cinematic photography.\",\"scenes\":[{\"id\":\"scene-1\",\"name\":\"Garden path\",\"prompt\":\"A wide shot of a garden path surrounded by flowers. A gentle breeze moves the petals and leaves as the camera slowly glides forward. Birds chirp in the distance.\",\"durationFrames\":48,\"audioMode\":\"generated\"}],\"seed\":42,\"audioSegments\":[{\"id\":\"audio-6a73382-17\",\"startFrame\":0,\"endFrame\":48,\"kind\":\"generate\"}],\"samplingPreset\":\"auto\"}",
         "upscale_enabled": true,
         "upscale_mode": "spatial",
         "spatial_upscale_model_name": "none",
@@ -391,14 +395,6 @@
       "VAE"
     ],
     [
-      5,
-      5,
-      0,
-      6,
-      0,
-      "VIDEO"
-    ],
-    [
       6,
       7,
       0,
@@ -413,6 +409,14 @@
       5,
       5,
       "LATENT_UPSCALE_MODEL"
+    ],
+    [
+      5,
+      5,
+      0,
+      6,
+      0,
+      "VIDEO"
     ]
   ],
   "groups": [],
@@ -421,11 +425,11 @@
     "ds": {
       "scale": 0.48,
       "offset": [
-        70,
-        70
+        279.37499999999994,
+        215.83333333333334
       ]
     },
-    "frontendVersion": "1.57.4"
+    "frontendVersion": "1.58.5"
   },
   "version": 0.4
 }
