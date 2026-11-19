@@ -22,7 +22,7 @@
 Happy Latent is a creative media generation MCP server with a ComfyUI video node.
 
 ### Happy Latent MCP
-- Create and edit multi-scene videos in Claude Code or Codex.
+- Create and edit multi-scene videos with your AI coding assistant. 
 - Generate images and use them as scene references.
 - Turn text into dialogue or narration.
 - Generate and analyze music, then add it to your video.
@@ -39,7 +39,8 @@ Happy Latent Video
 ## Install
 
 ### MCP
-Paste this into a Claude Code or Codex chat:
+
+Paste this into a chat with your AI coding assistant, like Claude Code or Codex: 
 
 ```text
 Set up Happy Latent MCP from https://github.com/EricFillion/happylatent. Ask me whether I want to run it locally or on Runpod, and what I’d like to generate: video, images, speech, or music. Then guide me through setup.
