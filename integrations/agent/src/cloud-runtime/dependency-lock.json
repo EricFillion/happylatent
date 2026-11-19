@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "comfyRevision": "e3bee7ffcb7d6547ed0bcd15221792f3b8646b17",
+  "requirementsSource": "https://raw.githubusercontent.com/Comfy-Org/ComfyUI/e3bee7ffcb7d6547ed0bcd15221792f3b8646b17/requirements.txt",
+  "requirementsSha256": "be1b15fd2f8ea459609c2e62d573ab862f53443023316ba494b4190af50bc028",
+  "python": "3.12",
+  "cloudPlatform": "linux-x86_64",
+  "localPlatform": "macos-arm64-14+",
+  "templatePackages": [
+    "torch",
+    "torchvision",
+    "torchaudio"
+  ],
+  "locks": {
+    "runtime-requirements.txt": "768aee09f7be476da83b55e01532473a104cd44d83b0e6a543096599b7e8119e",
+    "runtime-requirements-macos.txt": "4ff5504c9228a5b5296dfe313e7f86f899936807f363565dc69b56fe12c0a10e"
+  }
+}

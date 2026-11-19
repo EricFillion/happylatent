@@ -121,4 +121,3 @@ export function bindPanelSplit(root, handle) {
     layout();
     return { dispose() { finish(); abort.abort(); observer.disconnect(); cancelAnimationFrame(request); } };
 }
-//# sourceMappingURL=panel-split.js.map

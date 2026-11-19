@@ -198,7 +198,7 @@ def native_mix_node():
     class HappyLatentAudioMix(io.ComfyNode):
         @classmethod
         def define_schema(cls):
-            return io.Schema(node_id="HappyLatentAudioMix", category="HappyLatent/internal", is_deprecated=True,
+            return io.Schema(node_id="HappyLatentAudioMix", category="Happy Latent/internal", is_deprecated=True,
                 inputs=[io.String.Input("plan"), io.Autogrow.Input("generated",
                     template=io.Autogrow.TemplatePrefix(io.Audio.Input("audio"), prefix="audio", min=0, max=100))],
                 outputs=[io.Audio.Output()])

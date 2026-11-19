@@ -19,42 +19,81 @@
 </table>
 
 
-A visual editor for generating videos with LTX 2.5 in ComfyUI.
+Happy Latent is a creative media generation MCP server with a ComfyUI video node.
 
+### Happy Latent MCP
+- Create and edit multi-scene videos in Claude Code or Codex.
+- Generate images and use them as scene references.
+- Turn text into dialogue or narration.
+- Generate and analyze music, then add it to your video.
+- Regenerate individual scenes and keep your favorite takes.
+- Generate video, images, and music locally or on RunPod.
+
+Happy Latent Video
+- Edit multi-scene videos directly in a ComfyUI node.
 - Arrange scenes and adjust their duration on a timeline.
 - Guide each scene with a prompt and optional first and last frame images.
 - Choose generated audio, uploaded audio, or silence for each clip.
 - Upscale video resolution, increase frame rate, and refine the output.
 
-
 ## Install
 
+### MCP
+Paste this into a Claude Code or Codex chat:
 
-### ComfyUI Manager
-
-1. Open ComfyUI and click Manager.
-2. Open Custom Nodes Manager and search for HappyLatent.
-3. Select HappyLatent and click install.
-
-### ComfyUI CLI 
-
-```sh
-comfy node install happylatent
+```text
+Set up Happy Latent MCP from https://github.com/EricFillion/happylatent. Ask me whether I want to run it locally or on Runpod, and what I’d like to generate: video, images, speech, or music. Then guide me through setup.
 ```
 
-### Manual 
+When model downloads need approval, Happy Latent returns a local browser link. Review the files, sizes and destination, approve the plan, then tell the agent to continue. For Runpod, the review also shows the session budget.
 
-Navigate to your `custom_nodes` directory then clone the repository. 
+### Local speech setup
+
+Use a separate Python environment with Kokoro and its pronunciation dependencies. Download `config.json`, `kokoro-v1_0.pth`, and at least one `voices/*.pt` preset from [Kokoro 82M](https://huggingface.co/hexgrad/Kokoro-82M), keeping the same folder layout. Then point Happy Latent at the environment and model directory.
+
+```sh
+./install.sh speech-setup --speech-python /path/to/venv/bin/python --speech-model-dir /path/to/Kokoro-82M
+```
+
+### Happy Latent Video
+
+Navigate to your `custom_nodes` directory then clone the repository.
 
 ```sh
 git clone https://github.com/EricFillion/happylatent.git
 ```
 
+Download the following files from the [LTX 2.5 repository](https://huggingface.co/Lightricks/LTX-2.5) into the matching folders under `ComfyUI/models/`.
 
-Restart ComfyUI, then add the HappyLatentVideo node to your workflow. Generation requires the LTX 2.5 model, text encoder, video VAE, and audio VAE, which can be retrieved by running [workflows/starter/models.py](workflows/starter/models.py).
+- `diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors`
+- `text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors`
+- `vae/ltx-2.5-video-vae-conv-bf16.safetensors`
+- `vae/ltx-2.5-audio-vae-bf16.safetensors`
 
-You can find an example workflow in [workflows/starter/happylatent.json](workflows/starter/happylatent.json).
+Restart ComfyUI and open the [included workflow](workflows/mcp/happylatent.json).
 
+
+## Supported Models
+
+| Model | Task |
+| --- | --- |
+| [LTX 2.5](https://huggingface.co/Lightricks/LTX-2.5) | Video generation |
+| [FLUX.2 Klein 4B Distilled](https://huggingface.co/Comfy-Org/Flux-2-Klein-4B) | Image generation |
+| [Kokoro 82M v1.0](https://huggingface.co/hexgrad/Kokoro-82M) | Text-to-speech |
+| [ACE-Step 1.5 XL Turbo](https://huggingface.co/Comfy-Org/ACE-Step-1.5) | Music generation |
+
+
+
+## Runpod Integration (Advanced)
+
+1. Tell your agent, “Set up Runpod for Happy Latent using https://agents.runpod.io/.”
+2. Create a [Hugging Face read token](https://huggingface.co/settings/tokens) and save it in [Runpod Secrets](https://console.runpod.io/user/credentials?tab=secrets) as `happy_latent_hf`.
+3. Create an SSH key and [add the public key to Runpod](https://console.runpod.io/user/credentials?tab=ssh-key).
+4. Tell your agent, “Launch a GPU on Runpod with Happy Latent and generate a photo of a moose.” Then keep using Happy Latent as usual.
+
+For follow-up generations, reuse the active Pod. If `check_setup` reports missing models, use `cloud_install_models` with the existing plan ID, approve the missing files, and poll `cloud_model_install_status`. The original session budget and deadline still apply.
+
+Don't forget to shut down your Pods and delete persistent storage containers!
 
 ## Examples
 

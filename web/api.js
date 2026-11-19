@@ -42,4 +42,3 @@ export async function uploadAsset(file, kind) {
         throw new Error(`The upload server returned an invalid response: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-//# sourceMappingURL=api.js.map

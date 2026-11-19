@@ -1,12 +1,19 @@
 import { frameToSample, validateAudioSegments, MAX_SCENE_SECONDS, MAX_TIMELINE_SECONDS, type AudioMode } from "./audio.js";
 export { MAX_AUDIO_SEGMENTS } from "./audio.js";
 export type Asset = { filename: string; subfolder: string; type: "input" | "output" | "temp" };
+/** A durable, immutable rendered clip. Frame counts and trims use the source FPS. */
+export type VideoTake = { id: string; asset: Asset; frameCount: number; fps: number; width: number; height: number; hasAudio: boolean; name?: string; createdAt?: string; projectId?: string; sceneId?: string };
+export type SceneVideo = VideoTake & { sourceStartFrame: number };
 type AudioRange = { id: string; startFrame: number; endFrame: number | null };
 export type FileAudioSegment = AudioRange & { kind: "file"; asset: Asset; sourceOffsetSamples: number; name?: string };
 export type AudioSegment = (AudioRange & { kind: "generate" }) | FileAudioSegment;
+/** A soundtrack overlay; never conditions generation or replaces scene audio. */
+export type MusicSegment = { id: string; asset: Asset; startFrame: number; endFrame: number;
+  sourceStartSeconds: number; audioDurationSeconds: number; gainDb: number;
+  fadeInSeconds: number; fadeOutSeconds: number; name?: string };
 /** Position along the available horizontal and vertical crop travel. */
 export type CropPosition = { x: number; y: number; scale?: number };
-export type Scene = { id: string; name?: string; prompt: string; durationFrames: number; audioMode?: AudioMode; audioFallbackMode?: "generated" | "silent"; audioGuidance?: boolean; image?: Asset; crop?: CropPosition; endImage?: Asset; endCrop?: CropPosition; sampling?: SceneSampling; imageStrength?: number; endImageStrength?: number };
+export type Scene = { id: string; name?: string; prompt: string; durationFrames: number; video?: SceneVideo; audioMode?: AudioMode; audioFallbackMode?: "generated" | "silent"; audioGuidance?: boolean; audioGuidanceScale?: number; image?: Asset; crop?: CropPosition; endImage?: Asset; endCrop?: CropPosition; sampling?: SceneSampling; imageStrength?: number; endImageStrength?: number };
 export const MAX_SCENE_PROMPT_LENGTH = 48000;
 export const MAX_SCENE_NAME_LENGTH = 120;
 export type SamplingPreset = "auto" | "distilled" | "full";
@@ -24,9 +31,10 @@ export const DEFAULT_SAMPLING: Readonly<Sampling> = Object.freeze({
   steps: 8, cfg: 1, sampler: "euler_ancestral", scheduler: "distilled", imageStrength: 1,
 });
 export type Project = {
-  version: 3; id: string; title: string; fps: number; width: number; height: number;
+  version: 3 | 4; id: string; title: string; fps: number; width: number; height: number;
   globalPrompt: string; scenes: Scene[];
   audioSegments: AudioSegment[];
+  musicSegments?: MusicSegment[];
   sampling?: Sampling;
   samplingPreset?: SamplingPreset;
   seed: number;
@@ -43,7 +51,13 @@ export function getImageStrength(project: Pick<Project, "sampling">, scene: Scen
 
 /** Two endpoint images need distinct output frames. */
 export function minSceneFrames(scene: Scene): number {
-  return scene.image && scene.endImage ? 2 : 1;
+  return !scene.video && scene.image && scene.endImage ? 2 : 1;
+}
+export function availableVideoFrames(video: SceneVideo, fps: number): number {
+  return Math.floor((video.frameCount - video.sourceStartFrame) * fps / video.fps + 1e-7);
+}
+export function maxSceneFrames(scene: Scene, fps: number): number {
+  return scene.video ? availableVideoFrames(scene.video, fps) : Math.max(scene.durationFrames, fps * MAX_SCENE_SECONDS);
 }
 
 /** Pass authored text through unchanged, separated only by a blank line. */
@@ -142,7 +156,7 @@ function sceneSampling(value: unknown, global: Sampling): SceneSampling {
   const result = sampling({ ...global, ...source });
   return { cfg: result.cfg, sampler: result.sampler, scheduler: result.scheduler, imageStrength: result.imageStrength };
 }
-function cropPosition(value: unknown): CropPosition {
+export function cropPosition(value: unknown): CropPosition {
   const source = object(value);
   return { x: number(source.x, "Crop horizontal position", 0, 1), y: number(source.y, "Crop vertical position", 0, 1),
     ...(Object.hasOwn(source, "scale") ? { scale: number(source.scale, "Crop size", 0.1, 1) } : {}),
@@ -159,6 +173,56 @@ export function validateAsset(value: unknown): Asset {
   if ((source.type === undefined ? "input" : source.type) !== "input") throw new Error("Project assets must be input files.");
   return { filename, subfolder: normalized, type: "input" };
 }
+export function validateVideoAsset(value: unknown): Asset {
+  const rawAsset = object(value);
+  if (rawAsset.type !== "input" && rawAsset.type !== "output") throw new Error("Video clips must be input or output files.");
+  if (typeof rawAsset.filename !== "string" || !rawAsset.filename.toLowerCase().endsWith(".mp4")) throw new Error("Video clips must be normalized MP4 files.");
+  return { ...validateAsset({ ...rawAsset, type: "input" }), type: rawAsset.type };
+}
+/** Match Python round for fractional source/fade sample positions. */
+export function musicSecondsToSamples(seconds: number): number {
+  const value = seconds * 48000, whole = Math.floor(value), fraction = value - whole;
+  return whole + (fraction > 0.5 || fraction === 0.5 && whole % 2 !== 0 ? 1 : 0);
+}
+/** Timing stays absolute when scenes move, just like uploaded audio blocks. */
+export function validateMusicSegments(value: unknown, fps: number): MusicSegment[] {
+  if (!Array.isArray(value) || value.length > 100) throw new Error("Music segments must be an array with at most 100 segments.");
+  const ids = new Set<string>();
+  return value.map(entry => {
+    const row = object(entry), id = text(row.id, "Music ID", 128);
+    if (!id.trim() || ids.has(id)) throw new Error("Music IDs must be nonempty and unique.");
+    ids.add(id);
+    const asset = validateAsset(row.asset);
+    if (!/\.(wav|mp3|flac|ogg|m4a|aac)$/i.test(asset.filename)) throw new Error("Music must use an imported audio asset.");
+    const startFrame = integer(row.startFrame, "Music start", 0, fps * MAX_TIMELINE_SECONDS);
+    const endFrame = integer(row.endFrame, "Music end", 1, fps * MAX_TIMELINE_SECONDS);
+    if (endFrame <= startFrame) throw new Error("Music end must be after its start.");
+    const samples = frameToSample(endFrame, fps) - frameToSample(startFrame, fps);
+    const duration = samples / 48000;
+    const sourceStartSeconds = number(row.sourceStartSeconds ?? 0, "Music source start", 0, 600);
+    const audioDurationSeconds = number(row.audioDurationSeconds, "Measured music duration", Number.MIN_VALUE, 600);
+    if (musicSecondsToSamples(sourceStartSeconds) + samples > musicSecondsToSamples(audioDurationSeconds)) throw new Error("Music placement extends beyond the measured audio. Generate a longer track or shorten the placement.");
+    const gainDb = number(row.gainDb ?? -12, "Music gain", -60, 6);
+    const half = Math.floor(samples / 2) / 48000;
+    const fadeInSeconds = number(row.fadeInSeconds ?? Math.min(0.25, half), "Music fade in", 0, 30);
+    const fadeOutSeconds = number(row.fadeOutSeconds ?? Math.min(0.5, half), "Music fade out", 0, 30);
+    if (fadeInSeconds + fadeOutSeconds > duration + 1e-9 || musicSecondsToSamples(fadeInSeconds) + musicSecondsToSamples(fadeOutSeconds) > samples) throw new Error("Music fades cannot exceed the placement duration.");
+    const name = row.name === undefined ? "" : text(row.name, "Music name", 255).trim();
+    return { id, asset, startFrame, endFrame, sourceStartSeconds, audioDurationSeconds, gainDb,
+      fadeInSeconds, fadeOutSeconds, ...(name ? { name } : {}) };
+  }).sort((a, b) => a.startFrame - b.startFrame);
+}
+export function validateVideoTake(value: unknown): VideoTake {
+  const source = object(value), asset = validateVideoAsset(source.asset);
+  const id = text(source.id, "Take ID", 128);
+  if (!id.trim()) throw new Error("Take ID must be nonempty.");
+  if (typeof source.frameCount === "number" && typeof source.fps === "number" && source.frameCount > source.fps * 600 + 1e-7) throw new Error("Video clips cannot exceed 10 minutes.");
+  if (typeof source.hasAudio !== "boolean") throw new Error("Video audio metadata must be a boolean.");
+  return { id, asset, frameCount: integer(source.frameCount, "Video frame count", 1, 72000),
+    fps: number(source.fps, "Video frame rate", 1, 120), width: integer(source.width, "Video width", 1, 8192), height: integer(source.height, "Video height", 1, 8192), hasAudio: source.hasAudio,
+    ...Object.fromEntries((["name", "createdAt", "projectId", "sceneId"] as const).filter(key => source[key] !== undefined).map(key => [key, text(source[key], `Video ${key}`, key === "name" ? 120 : key === "createdAt" ? 64 : 128)])),
+  };
+}
 function scenePrompt(row: Record<string, unknown>): string {
   const parts = [text(row.prompt === undefined ? "" : row.prompt, "Clip prompt", MAX_SCENE_PROMPT_LENGTH)];
   // Older v3 projects stored shot cards; retain their authored text on import.
@@ -174,7 +238,7 @@ function scenePrompt(row: Record<string, unknown>): string {
 }
 function parseProject(value: unknown, maxSceneSeconds: number): Project {
   const source = object(value);
-  if (source.version !== 1 && source.version !== 2 && source.version !== 3) throw new Error("This project version is not supported.");
+  if (![1, 2, 3, 4].includes(source.version as number)) throw new Error("This project version is not supported.");
   if (source.version !== 1 && Object.hasOwn(source, "audio")) throw new Error("Projects version 2 and later use audioSegments instead of audio.");
   if (source.version === 1 && Object.hasOwn(source, "audioSegments")) throw new Error("Audio segments require project version 2.");
   if (!Array.isArray(source.scenes) || source.scenes.length < 1 || source.scenes.length > 100) throw new Error("A project needs between 1 and 100 clips.");
@@ -190,18 +254,25 @@ function parseProject(value: unknown, maxSceneSeconds: number): Project {
     if (!id.trim() || ids.has(id)) throw new Error("Clip IDs must be nonempty and unique.");
     ids.add(id);
     const name = Object.hasOwn(row, "name") ? text(row.name, "Clip name", MAX_SCENE_NAME_LENGTH).trim() : "";
-    if (!Number.isSafeInteger(row.durationFrames) || (row.durationFrames as number) < 1 || (row.durationFrames as number) > fps * maxSceneSeconds) throw new Error(`Clip duration must be between one frame and ${maxSceneSeconds} seconds (${fps * maxSceneSeconds} frames).`);
+    if (row.video !== undefined && source.version !== 4) throw new Error("Existing video clips require project version 4.");
+    const take = row.video !== undefined ? validateVideoTake(row.video) : undefined;
+    const video = take ? { ...take, sourceStartFrame: integer(object(row.video).sourceStartFrame ?? 0, "Video source start", 0, take.frameCount - 1) } : undefined;
+    const limit = video ? 600 : maxSceneSeconds;
+    if (!Number.isSafeInteger(row.durationFrames) || (row.durationFrames as number) < 1 || (row.durationFrames as number) > fps * limit) throw new Error(`Clip duration must be between one frame and ${limit} seconds (${fps * limit} frames).`);
     const durationFrames = row.durationFrames as number;
+    if (video && durationFrames > availableVideoFrames(video, fps)) throw new Error("Video duration cannot extend beyond the selected take. Choose a shorter duration or earlier source start.");
     if (Object.hasOwn(row, "audioMode") && !["generated", "supplied", "silent"].includes(row.audioMode as string)) throw new Error("Clip audio mode must be generated, supplied, or silent.");
     if (Object.hasOwn(row, "audioFallbackMode") && !["generated", "silent"].includes(row.audioFallbackMode as string)) throw new Error("Clip audio fallback must be generated or silent.");
     if (Object.hasOwn(row, "audioGuidance") && typeof row.audioGuidance !== "boolean") throw new Error("Clip audio guidance must be a boolean.");
-    if (durationFrames === 1 && row.image != null && row.endImage != null) throw new Error("First and last frame images require a clip of at least 2 frames.");
+    if (!video && durationFrames === 1 && row.image != null && row.endImage != null) throw new Error("First and last frame images require a clip of at least 2 frames.");
     return {
       id, ...(name ? { name } : {}), prompt: scenePrompt(row),
       durationFrames,
+      ...(video ? { video } : {}),
       ...(Object.hasOwn(row, "audioMode") ? { audioMode: row.audioMode as AudioMode } : {}),
       ...(Object.hasOwn(row, "audioFallbackMode") ? { audioFallbackMode: row.audioFallbackMode as "generated" | "silent" } : {}),
       ...(Object.hasOwn(row, "audioGuidance") ? { audioGuidance: row.audioGuidance as boolean } : {}),
+      ...(Object.hasOwn(row, "audioGuidanceScale") ? { audioGuidanceScale: number(row.audioGuidanceScale, "Audio guidance strength", 1, 5) } : {}),
       ...(row.image != null ? { image: validateAsset(row.image) } : {}),
       ...(Object.hasOwn(row, "crop") ? { crop: cropPosition(row.crop) } : {}),
       ...(row.endImage != null ? { endImage: validateAsset(row.endImage) } : {}),
@@ -212,7 +283,7 @@ function parseProject(value: unknown, maxSceneSeconds: number): Project {
     };
   });
   const result: Project = {
-    version: 3, id: text(source.id, "Project ID", 128), title: text(source.title === undefined ? "Untitled project" : source.title, "Title", 200),
+    version: source.version === 4 ? 4 : 3, id: text(source.id, "Project ID", 128), title: text(source.title === undefined ? "Untitled project" : source.title, "Title", 200),
     fps, width: integer(source.width, "Width", 64, 4096),
     height: integer(source.height, "Height", 64, 4096), globalPrompt: text(source.globalPrompt === undefined ? "" : source.globalPrompt, "Global prompt"),
     scenes, seed: integer(source.seed === undefined ? 0 : source.seed, "Seed", 0, Number.MAX_SAFE_INTEGER), audioSegments: [],
@@ -228,6 +299,7 @@ function parseProject(value: unknown, maxSceneSeconds: number): Project {
       sourceOffsetSamples: frameToSample(integer(row.trimStartFrames === undefined ? 0 : row.trimStartFrames, "Audio trim", 0, result.fps * 600), result.fps) }];
   }
   if (globalSampling) result.sampling = globalSampling;
+  if (Object.hasOwn(source, "musicSegments")) result.musicSegments = validateMusicSegments(source.musicSegments, fps);
   if (Object.hasOwn(source, "samplingPreset")) {
     if (!["auto", "distilled", "full"].includes(source.samplingPreset as string)) throw new Error("Sampling preset must be auto, distilled, or full.");
     result.samplingPreset = source.samplingPreset as SamplingPreset;
@@ -244,6 +316,7 @@ export function readProject(value: unknown): Project { return parseProject(value
 export function validateProjectEdit(value: unknown, previous: Project): Project {
   const next = readProject(value);
   for (const scene of next.scenes) {
+    if (scene.video) continue;
     if (scene.durationFrames <= next.fps * MAX_SCENE_SECONDS) continue;
     const original = previous.scenes.find(row => row.id === scene.id);
     if (!original || scene.durationFrames > Math.round(original.durationFrames * next.fps / previous.fps)) {

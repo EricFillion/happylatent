@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 import json
+import re
+
+from .klein import HappyLatentKleinImage, HappyLatentKleinReference
+from .speech import HappyLatentSpeech, HappyLatentKokoroModelLoader
+from .audio_guidance import HappyLatentAudioGuidance
 
 from .compiler import (NO_UPSCALE_MODEL, SPATIAL_UPSCALE_MODEL_NAME, TEMPORAL_UPSCALE_MODEL_NAME,
                        UPSCALE_MODES, compile_project, validate_refine_options, validate_upscale_options)
@@ -34,13 +39,28 @@ def parse_project(project):
         raise ValidationError("HappyLatentVideo project must be valid JSON.") from error
 
 
-def project_assets(project):
+def project_assets(project, generation_ids=None, included_ids=None):
     for scene in project["scenes"]:
+        if included_ids is not None and scene["id"] not in included_ids:
+            continue
+        if generation_ids is not None and scene["id"] not in generation_ids:
+            if scene.get("video"):
+                yield scene["video"]["asset"]
+            continue
         for key in ("image", "endImage"):
             if scene.get(key):
                 yield scene[key]
+    from .project import scene_ranges
+    ranges = scene_ranges(project)
     for segment in project["audioSegments"]:
-        if segment["kind"] == "file":
+        if segment["kind"] == "file" and (generation_ids is None or any(
+            item["scene"]["id"] in generation_ids and segment["startFrame"] < item["endFrame"]
+            and (segment["endFrame"] is None or segment["endFrame"] > item["startFrame"]) for item in ranges)):
+            yield segment["asset"]
+    for segment in project.get("musicSegments", []):
+        if any((included_ids is None or item["scene"]["id"] in included_ids)
+               and segment["startFrame"] < item["endFrame"]
+               and segment["endFrame"] > item["startFrame"] for item in ranges):
             yield segment["asset"]
 
 
@@ -71,12 +91,12 @@ class HappyLatentVideo:
     def INPUT_TYPES(cls):
         names = available_upscale_models()
         return {"required": {
-            "model": ("MODEL", {"rawLink": True}),
-            "clip": ("CLIP", {"rawLink": True}),
-            "video_vae": ("VAE", {"rawLink": True}),
-            "audio_vae": ("VAE", {"rawLink": True}),
             "project": ("STRING", {"default": DEFAULT_PROJECT, "multiline": True}),
         }, "optional": {
+            "model": ("MODEL", {"rawLink": True, "lazy": True}),
+            "clip": ("CLIP", {"rawLink": True, "lazy": True}),
+            "video_vae": ("VAE", {"rawLink": True, "lazy": True}),
+            "audio_vae": ("VAE", {"rawLink": True, "lazy": True}),
             "upscale_enabled": ("BOOLEAN", {"default": False, "label_on": "ON — 2x", "label_off": "OFF",
                 "tooltip": "Upscale each scene's generated latents before decoding using the selected mode. Timeline dimensions and frame rate remain the base generation settings."}),
             "upscale_model": ("LATENT_UPSCALE_MODEL", {"rawLink": True, "lazy": True,
@@ -89,28 +109,32 @@ class HappyLatentVideo:
             "temporal_upscale_model_name": upscale_model_choices(names, TEMPORAL_UPSCALE_MODEL_NAME),
             "refine_enabled": ("BOOLEAN", {"default": False,
                 "tooltip": "Refine the output with the connected generation model. Spatial and temporal upscaling always require refinement."}),
+            "render_mode": (["generate", "selected", "export"], {"default": "generate"}),
+            "scene_ids": ("STRING", {"default": "[]"}),
+            "run_id": ("STRING", {"default": ""}),
         }, "hidden": {"prompt": "PROMPT"}}
 
     RETURN_TYPES = ("VIDEO",)
     RETURN_NAMES = ("video",)
     FUNCTION = "generate"
-    CATEGORY = "HappyLatent"
+    CATEGORY = "Happy Latent"
     DESCRIPTION = "Arrange clips, prompts and images. Choose exactly one audio mode per clip: silent, provided audio or generated audio. Connect the model, text encoder, video VAE and audio VAE, then send VIDEO to Save Video. Optionally enable spatial and/or temporal LTX 2.5 latent upscaling before decoding. Temporal upscaling includes source-anchored refinement, preserving duration and audio at double the output FPS."
 
     @classmethod
     def VALIDATE_INPUTS(cls, project, upscale_enabled=False, upscale_model=None,
                         upscale_mode="spatial", temporal_upscale_model=None,
                         spatial_upscale_model_name=NO_UPSCALE_MODEL, temporal_upscale_model_name=NO_UPSCALE_MODEL,
-                 refine_enabled=None):
+                 refine_enabled=None, render_mode="generate", scene_ids="[]", run_id=""):
         try:
-            validate_generation_audio(parse_project(project))
+            from .clips import render_plan
+            generation, _, _ = render_plan(parse_project(project), render_mode, scene_ids)
             validate_refine_options(refine_enabled)
             # A linked Boolean is unresolved during ComfyUI's preflight. Its
             # actual value and the loader link are checked again in compilation.
             awaiting_name = upscale_enabled and (
                 (upscale_mode in ("spatial", "spatial+temporal") and upscale_model is None and spatial_upscale_model_name is None)
                 or (upscale_mode in ("temporal", "spatial+temporal") and temporal_upscale_model is None and temporal_upscale_model_name is None))
-            if upscale_enabled is not None and upscale_mode is not None and not awaiting_name:
+            if generation and upscale_enabled is not None and upscale_mode is not None and not awaiting_name:
                 validate_upscale_options(upscale_enabled, upscale_model, upscale_mode, temporal_upscale_model,
                     spatial_upscale_model_name, temporal_upscale_model_name,
                     available_model_names=available_upscale_models() if upscale_enabled else None)
@@ -126,25 +150,30 @@ class HappyLatentVideo:
         # This fingerprint adds files outside the graph; it must stay stable for
         # unchanged inputs so text encodings and unaffected scenes can be reused.
         # Uploaded assets are immutable. Also invalidate after a local file edit.
-        return tuple((json.dumps(asset, sort_keys=True), *asset_fingerprint(asset))
-                     for asset in project_assets(parse_project(project)))
+        from .clips import render_plan
+        parsed = parse_project(project)
+        generation, included, _ = render_plan(parsed, kwargs.get("render_mode", "generate"), kwargs.get("scene_ids", "[]"))
+        return tuple((json.dumps(asset, sort_keys=True), *asset_fingerprint(asset, allow_output=True))
+                     for asset in project_assets(parsed, generation, included))
 
-    def generate(self, model, clip, video_vae, audio_vae, project, prompt=None,
+    def generate(self, model=None, clip=None, video_vae=None, audio_vae=None, project="", prompt=None,
                  upscale_enabled=False, upscale_model=None, upscale_mode="spatial", temporal_upscale_model=None,
                  spatial_upscale_model_name=NO_UPSCALE_MODEL, temporal_upscale_model_name=NO_UPSCALE_MODEL,
-                 refine_enabled=None):
+                 refine_enabled=None, render_mode="generate", scene_ids="[]", run_id=""):
         from comfy_execution.graph_utils import GraphBuilder
         from .assets import open_asset
 
         project = parse_project(project)
-        validate_generation_audio(project)
+        from .clips import render_plan
+        generation, included, _ = render_plan(project, render_mode, scene_ids)
         validate_refine_options(refine_enabled)
-        validate_upscale_options(upscale_enabled, upscale_model, upscale_mode, temporal_upscale_model,
-            spatial_upscale_model_name, temporal_upscale_model_name,
-            available_model_names=available_upscale_models() if upscale_enabled else None)
-        for asset in project_assets(project):
+        if generation:
+            validate_upscale_options(upscale_enabled, upscale_model, upscale_mode, temporal_upscale_model,
+                spatial_upscale_model_name, temporal_upscale_model_name,
+                available_model_names=available_upscale_models() if upscale_enabled else None)
+        for asset in project_assets(project, generation, included):
             try:
-                with open_asset(asset):
+                with open_asset(asset, allow_output=True):
                     pass
             except FileNotFoundError:
                 raise ValidationError(f"Media file is missing: {asset['filename']}") from None
@@ -157,7 +186,7 @@ class HappyLatentVideo:
                                       upscale_mode=upscale_mode, temporal_upscale_model=temporal_upscale_model,
                                       spatial_upscale_model_name=spatial_upscale_model_name,
                                       temporal_upscale_model_name=temporal_upscale_model_name,
-                                      refine_enabled=refine_enabled)
+                                      refine_enabled=refine_enabled, render_mode=render_mode, scene_ids=scene_ids, run_id=run_id)
         return {"result": (video,), "expand": graph}
 
 
@@ -168,7 +197,7 @@ class HappyLatentFreezeAudioLatent:
 
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "freeze"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -186,7 +215,7 @@ class HappyLatentAudioConditioning:
 
     RETURN_TYPES = ("AUDIO",)
     FUNCTION = "prepare"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -225,7 +254,7 @@ class HappyLatentAudioMask:
 
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "mask"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -246,7 +275,7 @@ class HappyLatentEmptyAudioLatent:
 
     RETURN_TYPES = ("LATENT",)
     FUNCTION = "create"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -265,7 +294,7 @@ class HappyLatentDecode:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "decode"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -361,7 +390,7 @@ class HappyLatentTrimFrames:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "trim"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -381,7 +410,7 @@ class HappyLatentLoadImage:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "load_image"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -417,7 +446,7 @@ class HappyLatentImageCrop:
 
     RETURN_TYPES = ("IMAGE",)
     FUNCTION = "crop"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -443,7 +472,7 @@ class HappyLatentSceneVideo:
 
     RETURN_TYPES = ("VIDEO",)
     FUNCTION = "encode"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -480,7 +509,7 @@ class HappyLatentAudioSegment:
 
     RETURN_TYPES = ("AUDIO",)
     FUNCTION = "prepare"
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     # Expansion helpers stay available to execution without cluttering Add Node.
     DEPRECATED = True
 
@@ -521,7 +550,11 @@ class HappyLatentAudioSegment:
 
 
 NODE_CLASS_MAPPINGS = {
+    "HappyLatentSpeech": HappyLatentSpeech,
+    "HappyLatentKokoroModelLoader": HappyLatentKokoroModelLoader,
     "HappyLatentVideo": HappyLatentVideo,
+    "HappyLatentKleinImage": HappyLatentKleinImage,
+    "HappyLatentKleinReference": HappyLatentKleinReference,
     "HappyLatentFreezeAudioLatent": HappyLatentFreezeAudioLatent,
     "HappyLatentDecode": HappyLatentDecode,
     "HappyLatentTrimFrames": HappyLatentTrimFrames,
@@ -531,34 +564,53 @@ NODE_CLASS_MAPPINGS = {
     "HappyLatentAudioSegment": HappyLatentAudioSegment,
     "HappyLatentAudioConditioning": HappyLatentAudioConditioning,
     "HappyLatentAudioMask": HappyLatentAudioMask,
+    "HappyLatentAudioGuidance": HappyLatentAudioGuidance,
     "HappyLatentEmptyAudioLatent": HappyLatentEmptyAudioLatent,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "HappyLatentVideo": "HappyLatentVideo",
-    "HappyLatentFreezeAudioLatent": "HappyLatent: Preserve Custom Audio",
-    "HappyLatentDecode": "HappyLatent: Decode Video",
-    "HappyLatentTrimFrames": "HappyLatent: Trim Frames",
-    "HappyLatentLoadImage": "HappyLatent: Load Reference Image",
-    "HappyLatentImageCrop": "HappyLatent: Reference Image Crop",
-    "HappyLatentSceneVideo": "HappyLatent: Clip Video",
-    "HappyLatentAudioSegment": "HappyLatent: Audio Segment",
-    "HappyLatentAudioConditioning": "HappyLatent: Audio Conditioning",
-    "HappyLatentAudioMask": "HappyLatent: Audio Generation Mask",
-    "HappyLatentEmptyAudioLatent": "HappyLatent: Empty Audio Latent",
-    "HappyLatentAudioMix": "HappyLatent: Complete Soundtrack",
+    "HappyLatentSpeech": "Happy Latent Kokoro",
+    "HappyLatentKokoroModelLoader": "Happy Latent Kokoro Model Loader",
+    "HappyLatentVideo": "Happy Latent Video",
+    "HappyLatentKleinImage": "Happy Latent Klein Image",
+    "HappyLatentKleinReference": "Happy Latent Validate Klein Reference",
+    "HappyLatentFreezeAudioLatent": "Happy Latent Preserve Custom Audio",
+    "HappyLatentDecode": "Happy Latent Decode Video",
+    "HappyLatentTrimFrames": "Happy Latent Trim Frames",
+    "HappyLatentLoadImage": "Happy Latent Load Reference Image",
+    "HappyLatentImageCrop": "Happy Latent Reference Image Crop",
+    "HappyLatentSceneVideo": "Happy Latent Clip Video",
+    "HappyLatentAudioSegment": "Happy Latent Audio Segment",
+    "HappyLatentAudioConditioning": "Happy Latent Audio Conditioning",
+    "HappyLatentAudioMask": "Happy Latent Audio Generation Mask",
+    "HappyLatentAudioGuidance": "Happy Latent Audio Guidance Strength",
+    "HappyLatentEmptyAudioLatent": "Happy Latent Empty Audio Latent",
+    "HappyLatentAudioMix": "Happy Latent Complete Soundtrack",
 }
 
 from .temporal import TEMPORAL_NODE_CLASSES
 for _node in TEMPORAL_NODE_CLASSES:
     NODE_CLASS_MAPPINGS[_node.__name__] = _node
-    NODE_DISPLAY_NAME_MAPPINGS[_node.__name__] = _node.__name__
+    NODE_DISPLAY_NAME_MAPPINGS[_node.__name__] = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", _node.__name__)
 
 try:
     from .audio_nodes import native_mix_node
     from .temporal import native_temporal_join_node
     NODE_CLASS_MAPPINGS["HappyLatentTemporalJoin"] = native_temporal_join_node()
-    NODE_DISPLAY_NAME_MAPPINGS["HappyLatentTemporalJoin"] = "HappyLatent: Join Refined Windows"
+    NODE_DISPLAY_NAME_MAPPINGS["HappyLatentTemporalJoin"] = "Happy Latent Join Refined Windows"
     NODE_CLASS_MAPPINGS["HappyLatentAudioMix"] = native_mix_node()
 except ModuleNotFoundError as error:
     if error.name != "comfy_api":
         raise
+
+from .clip_nodes import CLIP_NODE_CLASSES
+for _node in CLIP_NODE_CLASSES:
+    NODE_CLASS_MAPPINGS[_node.__name__] = _node
+    NODE_DISPLAY_NAME_MAPPINGS[_node.__name__] = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", _node.__name__)
+
+from .music_nodes import HappyLatentMusicMix
+NODE_CLASS_MAPPINGS["HappyLatentMusicMix"] = HappyLatentMusicMix
+NODE_DISPLAY_NAME_MAPPINGS["HappyLatentMusicMix"] = "Happy Latent Music Overlay"
+
+from .upscale_source import HappyLatentLoadUpscaleSource
+NODE_CLASS_MAPPINGS["HappyLatentLoadUpscaleSource"] = HappyLatentLoadUpscaleSource
+NODE_DISPLAY_NAME_MAPPINGS["HappyLatentLoadUpscaleSource"] = "Happy Latent Load Upscale Source"

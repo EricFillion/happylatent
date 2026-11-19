@@ -66,4 +66,3 @@ export function resizeCrop(geometry, position, corner, deltaX, deltaY) {
         ...(scale !== 1 ? { scale } : {}),
     };
 }
-//# sourceMappingURL=crop.js.map

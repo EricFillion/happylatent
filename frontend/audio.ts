@@ -68,7 +68,7 @@ export function audioModeError(index: number): string {
   return `Clip ${index + 1} has conflicting audio. Use one audio type per clip. Select Silent, Provided audio, or Generated audio for the whole clip.`;
 }
 export function validateGenerationAudio(project: Project): void {
-  const index = project.scenes.findIndex((_, index) => sceneAudioConflict(project, index));
+  const index = project.scenes.findIndex((scene, index) => !scene.video && sceneAudioConflict(project, index));
   if (index >= 0) throw new Error(audioModeError(index));
 }
 function clipAudioState(project: Project, index: number): string {
@@ -83,6 +83,7 @@ function clipAudioState(project: Project, index: number): string {
 /** Unrelated edits can preserve imported conflicts, but edits cannot create new ones. */
 export function validateAudioModeEdit(next: Project, previous: Project): Project {
   const index = next.scenes.findIndex((scene, index) => {
+    if (scene.video) return false;
     if (!sceneAudioConflict(next, index)) return false;
     const prior = previous.scenes.findIndex(row => row.id === scene.id);
     return prior < 0 || !sceneAudioConflict(previous, prior) || clipAudioState(next, index) !== clipAudioState(previous, prior);

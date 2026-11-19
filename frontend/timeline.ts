@@ -1,4 +1,4 @@
-import { assetUrl, minSceneFrames, type AudioSegment, type Project, sceneAtFrame, sceneName, sceneStartFrame, totalFrames } from "./domain.js";
+import { assetUrl, minSceneFrames, maxSceneFrames, type AudioSegment, type Project, sceneAtFrame, sceneName, sceneStartFrame, totalFrames } from "./domain.js";
 import { AUDIO_SAMPLE_RATE, MAX_SCENE_SECONDS, MAX_TIMELINE_SECONDS, audioEnd, fileAudioEndLimit, frameToSample, placeProvidedAudio, reflowSceneAudio } from "./audio.js";
 import { positionedCrop } from "./crop.js";
 
@@ -418,8 +418,8 @@ export class Timeline {
     if (gesture.kind === "audio") this.updateAudioDraft(gesture, delta);
     else {
       // Legacy long scenes may be shortened gradually, but never extended further.
-      const maximum = Math.max(gesture.initialFrames, this.project.fps * MAX_SCENE_SECONDS);
       const scene = this.project.scenes.find(row => row.id === gesture.sceneId)!;
+      const maximum = maxSceneFrames(scene, this.project.fps);
       gesture.frames = Math.max(minSceneFrames(scene), Math.min(maximum, gesture.initialFrames + Math.round(delta)));
     }
     const view = this.resizeView;
@@ -454,7 +454,7 @@ export class Timeline {
     if (elapsed) {
       const frames = totalFrames(this.project);
       const maximum = gesture.kind === "scene-resize"
-        ? Math.max(gesture.initialFrames, this.project.fps * MAX_SCENE_SECONDS)
+        ? maxSceneFrames(this.project.scenes.find(row => row.id === gesture.sceneId)!, this.project.fps)
         : audioEnd(this.audioDraft(gesture, this.horizonFrame()), frames);
       const current = gesture.kind === "scene-resize" ? gesture.frames : audioEnd(gesture.draft, frames);
       view.panned = true;

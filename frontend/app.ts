@@ -1,8 +1,8 @@
-import { assetUrl, createScene, durationFramesFromSeconds, formatDuration, formatPlaybackTime, formatTime, getSampling, getImageStrength, minSceneFrames, MAX_SCENE_PROMPT_LENGTH, History, MAX_SCENE_NAME_LENGTH, newProject, sceneAtFrame, sceneName, sceneStartFrame, totalFrames, validateProject, readProject, validateProjectEdit, type Project, type Scene, type Asset, type AudioSegment, type ModelProfile, type SamplingPreset, SAMPLING_PRESETS } from "./domain.js";
+import { assetUrl, createScene, durationFramesFromSeconds, formatDuration, formatPlaybackTime, formatTime, getSampling, getImageStrength, minSceneFrames, maxSceneFrames, MAX_SCENE_PROMPT_LENGTH, History, MAX_SCENE_NAME_LENGTH, newProject, sceneAtFrame, sceneName, sceneStartFrame, totalFrames, validateProject, readProject, validateProjectEdit, type Project, type Scene, type Asset, type AudioSegment, type ModelProfile, type SamplingPreset, SAMPLING_PRESETS } from "./domain.js";
 import { uploadAsset } from "./api.js";
 import { Playback } from "./playback.js";
 import { Timeline } from "./timeline.js";
-import { MAX_SCENE_SECONDS, MAX_TIMELINE_SECONDS, audioEnd, fileAudioEndLimit, frameToSample, placeProvidedAudio, reconcileProvidedAudio, sceneAudioMode, sceneAudioConflict, sceneAudioCoverage, sceneUsesAudioGuidance, reflowSceneAudio, setSceneAudioMode, validateGenerationAudio, validateAudioModeEdit, audioModeError, type AudioMode } from "./audio.js";
+import { MAX_SCENE_SECONDS, MAX_TIMELINE_SECONDS, audioEnd, fileAudioEndLimit, frameToSample, placeProvidedAudio, reconcileProvidedAudio, sceneAudioMode, sceneAudioConflict, reflowSceneAudio, setSceneAudioMode, validateGenerationAudio, validateAudioModeEdit, audioModeError, type AudioMode } from "./audio.js";
 import { positionedCrop } from "./crop.js";
 import { bindCropDrag } from "./crop-drag.js";
 import { bindPanelSplit } from "./panel-split.js";
@@ -117,11 +117,7 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
         <div class="panel-divider" data-testid="panel-divider" role="separator" tabindex="0" aria-label="Resize preview and timeline" aria-orientation="horizontal" aria-controls="${editorId}-timeline" title="Drag to resize preview and timeline. Arrow keys adjust; Enter or double-click resets."><span aria-hidden="true"></span></div>
         <section class="timeline-panel" id="${editorId}-timeline" aria-label="Timeline editor">
           <div class="timeline-actions"><span class="video-duration" data-testid="video-duration" title="Seconds are rounded to one decimal; exact timing is preserved."></span><button class="add-clip" data-action="add-scene" data-testid="add-scene" aria-label="Add clip">+ Add clip</button><div class="clip-audio-control"><span class="audio-mode-label">Audio</span><details class="editor-menu add-audio-menu"><summary class="add-clip" aria-label="Clip audio mode" title="Choose one audio mode for the selected clip" aria-haspopup="menu"><span class="clip-audio-value"></span> <span aria-hidden="true">⌄</span></summary><div class="menu-options" role="menu" aria-label="Clip audio choices"><button role="menuitemradio" aria-checked="false" data-action="add-generated-audio" data-testid="add-generated-audio" data-audio-mode="generated">Generate audio</button><button role="menuitemradio" aria-checked="false" data-action="set-supplied-audio" data-testid="supplied-audio" data-audio-mode="supplied">Provide audio</button><button role="menuitemradio" aria-checked="false" data-action="silent-audio" data-testid="silent-audio" data-audio-mode="silent">Silent</button></div></details></div>
-          <details class="editor-menu audio-guidance-menu"><summary class="audio-guidance-summary" data-testid="audio-guidance-menu" aria-label="Clip audio guidance"><span class="audio-guidance-value">Audio guidance</span><span class="audio-coverage-value"></span></summary><div class="menu-options audio-guidance-options">
-          <div class="scene-audio-guidance" role="group" aria-labelledby="${editorId}-audio-guidance-scope">
-            <div class="audio-guidance-control"><span class="audio-guidance-scope" data-testid="audio-guidance-scope" id="${editorId}-audio-guidance-scope"></span><button class="audio-guidance-label audio-guidance" data-testid="audio-guidance" type="button" role="checkbox" aria-checked="true"><span class="audio-guidance-check" aria-hidden="true"></span>Use audio to guide video</button><p class="audio-guidance-description" id="${editorId}-audio-guidance-description"></p></div>
-            <div class="audio-coverage-details"><p class="audio-coverage" data-testid="audio-coverage"></p><div class="audio-coverage-bar" aria-hidden="true"></div><p class="audio-guidance-help" data-testid="audio-guidance-help" id="${editorId}-audio-guidance-help"></p></div>
-          </div></div></details></div>
+          </div>
           <div class="transport"><button class="icon-button" data-action="start" aria-label="Go to start" title="Go to start">|◀</button><button class="play-button" data-action="play" data-testid="play-toggle" aria-label="Play silent preview">▶</button><span class="playhead-time" data-testid="playhead-time">0:00.0</span><span class="total-time" data-testid="total-duration" aria-label="Total duration"></span><span class="timecode-format" title="Playback position and duration are shown as minutes:seconds.tenths"></span></div>
           <div class="timeline-toolbar"><button class="quiet-button" data-action="audio" data-testid="upload-timeline-audio">Upload audio</button><div class="timeline-zoom" role="group" aria-label="Timeline zoom controls"><button class="quiet-button" data-action="timeline-zoom-out" aria-label="Zoom out timeline" title="Zoom out">−</button><input class="timeline-zoom-range" type="range" min="-2" max="5" step="0.25" value="0" aria-label="Timeline zoom" aria-valuetext="100%"><button class="quiet-button" data-action="timeline-zoom-in" aria-label="Zoom in timeline" title="Zoom in">+</button><output class="timeline-zoom-value" aria-hidden="true">100%</output><button class="quiet-button" data-action="timeline-fit" aria-label="Fit timeline" title="Show all clips and audio">Fit</button></div></div>
           <div class="timeline-surface"><canvas class="timeline-canvas" data-testid="timeline" tabindex="0" role="slider" aria-label="Timeline position in frames" aria-valuemin="0" aria-valuenow="0"></canvas><input class="scene-name-input" data-testid="scene-name-input" aria-label="Clip name" maxlength="${MAX_SCENE_NAME_LENGTH}" hidden></div>
@@ -362,45 +358,9 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
     const label = audioMode === "mixed" ? "Choose mode" : audioMode === "supplied" ? "Provide audio" : audioMode === "generated" ? "Generate audio" : "Silent";
     q(".clip-audio-value").textContent = label;
     root.querySelectorAll<HTMLElement>("[data-audio-mode]").forEach(button => button.setAttribute("aria-checked", String(button.dataset.audioMode === audioMode)));
-    const conflict = project.scenes.findIndex((_, index) => sceneAudioConflict(project, index));
+    const conflict = project.scenes.findIndex((scene, index) => !scene.video && sceneAudioConflict(project, index));
     q(".audio-mode-feedback").hidden = conflict < 0;
     q(".audio-mode-feedback").textContent = conflict < 0 ? "" : audioModeError(conflict);
-    renderAudioGuidance();
-  }
-  function renderAudioGuidance(): void {
-    const scene = selected(), index = project.scenes.findIndex(row => row.id === scene.id);
-    const { coveredFrames, totalFrames: duration } = sceneAudioCoverage(project, index);
-    const remaining = duration - coveredFrames, enabled = sceneUsesAudioGuidance(scene);
-    const control = q<HTMLButtonElement>(".audio-guidance");
-    control.setAttribute("aria-checked", String(enabled));
-    control.disabled = !coveredFrames || sceneAudioConflict(project, index);
-    const label = `Audio for ${sceneName(scene, index)}`;
-    q(".audio-guidance-scope").textContent = label;
-    q(".audio-guidance-scope").title = label;
-    const displaySeconds = (frames: number) => String(Number((frames / project.fps).toFixed(3)));
-    q(".audio-coverage").textContent = coveredFrames
-      ? `Audio covers ${displaySeconds(coveredFrames)} of ${displaySeconds(duration)} seconds` : "No provided audio in this clip";
-    q(".audio-coverage").title = `${coveredFrames} of ${duration} frames covered`;
-    q(".audio-guidance-value").textContent = coveredFrames && !enabled ? "Soundtrack only" : "Audio guidance";
-    q(".audio-coverage-value").textContent = coveredFrames ? `${displaySeconds(coveredFrames)} / ${displaySeconds(duration)} s covered` : "No provided audio";
-    q(".audio-guidance-summary").title = `${label}. ${q(".audio-coverage").textContent}. ${enabled ? "Guidance on" : "Guidance off"}.`;
-    q(".audio-guidance-help").textContent = !coveredFrames ? "Choose Provide audio to use this setting."
-      : sceneAudioConflict(project, index) ? "Choose one audio mode to resolve this clip’s conflict."
-      : remaining ? `The remaining ${displaySeconds(remaining)} seconds will be silent.` : "The recording covers the whole clip.";
-    q(".audio-guidance-description").textContent = !coveredFrames || control.disabled ? "Saved per clip; audio edits keep this choice."
-      : enabled ? remaining ? "Audio and silent gaps guide the video." : "Audio guides this clip’s video."
-      : "Soundtrack only; visuals use prompt and images.";
-    const start = sceneStartFrame(project, index);
-    const intervals = project.audioSegments.flatMap(segment => {
-      if (segment.kind !== "file") return [];
-      const left = Math.max(start, segment.startFrame), right = Math.min(start + duration, audioEnd(segment, totalFrames(project)));
-      if (right <= left) return [];
-      const fill = document.createElement("span");
-      fill.style.left = `${100 * (left - start) / duration}%`;
-      fill.style.width = `${100 * (right - left) / duration}%`;
-      return [fill];
-    });
-    q(".audio-coverage-bar").replaceChildren(...intervals);
   }
   function chooseAudioMode(audioMode: AudioMode): void {
     if (!finishAudioDraft() || !finishTextDrafts() || !finishSceneDrafts()) return;
@@ -760,7 +720,7 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
     feedback("settings"); feedback("scene");
     if (!project.scenes.some(scene => scene.id === selectedId)) selectedId = project.scenes[0]!.id;
     if (renamingId && !project.scenes.some(scene => scene.id === renamingId)) renamingId = undefined;
-    const oversized = project.scenes.filter(scene => scene.durationFrames > project.fps * MAX_SCENE_SECONDS);
+    const oversized = project.scenes.filter(scene => !scene.video && scene.durationFrames > project.fps * MAX_SCENE_SECONDS);
     const limitFeedback = q(".scene-limit-feedback");
     limitFeedback.hidden = oversized.length === 0;
     limitFeedback.textContent = oversized.length ? `${oversized.length} ${oversized.length === 1 ? "clip exceeds" : "clips exceed"} the ${MAX_SCENE_SECONDS}-second generation limit. Shorten them or divide them into clips of ${MAX_SCENE_SECONDS} seconds or less before running.` : "";
@@ -774,7 +734,7 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
     setNumber(".scene-duration", seconds(scene.durationFrames));
     q<HTMLInputElement>(".scene-duration").step = "any";
     q<HTMLInputElement>(".scene-duration").min = "0";
-    q<HTMLInputElement>(".scene-duration").max = String(MAX_SCENE_SECONDS);
+    q<HTMLInputElement>(".scene-duration").max = String(maxSceneFrames(scene, project.fps) / project.fps);
     renderTimingCaption(".frame-help", scene.durationFrames, sceneStartFrame(project, index));
     const addSceneButton = q<HTMLButtonElement>('[data-action="add-scene"]');
     addSceneButton.disabled = project.scenes.length >= 100;
@@ -1044,13 +1004,6 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
   q<HTMLButtonElement>(".refine-output").addEventListener("click", () => {
     if (!upscale.spatialEnabled && !upscale.temporalEnabled && !upscale.refineLinked) updateUpscale({ refineEnabled: !upscale.refineEnabled });
   }, events);
-  q<HTMLButtonElement>(".audio-guidance").addEventListener("click", event => {
-    const control = event.currentTarget as HTMLButtonElement, enabled = !sceneUsesAudioGuidance(selected()), id = selected().id;
-    if (control.disabled || !finishAudioDraft() || !finishTextDrafts() || !finishSceneDrafts()) { renderAudioGuidance(); return; }
-    if (selected().id !== id || sceneUsesAudioGuidance(selected()) === enabled) { renderAudioGuidance(); return; }
-    pausePlayback();
-    editScene(scene => ({ ...scene, audioGuidance: enabled }));
-  }, events);
   const nameInput = q<HTMLInputElement>(".scene-name-input");
   nameInput.addEventListener("input", () => { if (renamingId) renameDraft = nameInput.value; }, events);
   nameInput.addEventListener("keydown", event => {
@@ -1072,6 +1025,7 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
     menu.addEventListener("focusout", event => { if (!menu.contains(event.relatedTarget as Node | null)) closeMenu(menu); }, events);
     menu.addEventListener("keydown", event => {
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); closeMenu(menu, true); return; }
+      if ((event.target as Element).matches("input, textarea, select")) return;
       if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
       const buttons = Array.from(menu.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
       if (!buttons.length) return;
@@ -1171,7 +1125,7 @@ export function mountHappyLatentVideo(container: HTMLElement, options: HappyLate
   }
   bindDurationStepper("scene", direction => {
     const scene = selected(), minimum = minSceneFrames(scene);
-    const durationFrames = Math.max(minimum, Math.min(Math.max(project.fps * MAX_SCENE_SECONDS, scene.durationFrames), scene.durationFrames + direction));
+    const durationFrames = Math.max(minimum, Math.min(maxSceneFrames(scene, project.fps), scene.durationFrames + direction));
     const input = q<HTMLInputElement>(".scene-duration");
     input.setCustomValidity(""); input.removeAttribute("aria-invalid");
     commit(sceneUpdate(current => ({ ...current, durationFrames })));

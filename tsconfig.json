@@ -9,7 +9,6 @@
     "skipLibCheck": true,
     "rootDir": "frontend",
     "outDir": "web",
-    "sourceMap": true,
     "types": []
   },
   "include": ["frontend/**/*.ts"]

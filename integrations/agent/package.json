@@ -1,0 +1,18 @@
+{
+  "name": "happylatent-agent",
+  "version": "0.1.0",
+  "description": "Local Happy Latent integration for coding agents",
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "engines": {
+    "node": ">=22"
+  },
+  "private": true,
+  "scripts": {
+    "prepare": "node prepare-resources.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.4.3"
+  }
+}
