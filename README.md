@@ -71,10 +71,23 @@ git clone https://github.com/EricFillion/happylatent.git
 
 ## Runpod Integration (Advanced)
 
-1. Tell your agent, “Set up Runpod for Happy Latent using https://agents.runpod.io/.”
+1. Copy this prompt into your agent:
+
+   ```text
+   Set up Runpod for Happy Latent using https://agents.runpod.io/.
+   ```
+
 2. Create a [Hugging Face read token](https://huggingface.co/settings/tokens) and save it in [Runpod Secrets](https://console.runpod.io/user/credentials?tab=secrets) as `happy_latent_hf`.
+
 3. Create an SSH key and [add the public key to Runpod](https://console.runpod.io/user/credentials?tab=ssh-key).
-4. Tell your agent, “Launch a GPU on Runpod with Happy Latent and generate a photo of a moose.” Then keep using Happy Latent as usual.
+
+4. Copy this prompt into your agent:
+
+   ```text
+   Launch a GPU on Runpod with Happy Latent and generate a photo of a moose.
+   ```
+
+   Then keep using Happy Latent as usual.
 
 Don't forget to shut down your Pods and delete persistent storage containers!
 
