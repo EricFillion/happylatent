@@ -152,3 +152,27 @@ Don't forget to shut down your Pods and delete persistent storage containers!
   </tr>
 </table>
 
+## Happy Latent MCP Examples
+
+Copy one of these prompts into your MCP-connected chat.
+
+### Image
+
+> Use Happy Latent to create a landscape photograph of an open violin case on a backstage bench, lit by a warm dressing-room lamp. Frame it at eye level with the violin in sharp focus.
+
+### Video
+
+> Use Happy Latent to make a five-second landscape video of a violinist stepping from backstage into a concert hall. 
+
+### Speech
+
+> Use Happy Latent to generate warm, unhurried female narration. Read this line exactly: “From backstage, I could hear the audience settling into their seats.”
+
+### Music
+
+> Use Happy Latent to generate a 20-second instrumental track for a backstage scene. Start with quiet solo violin, bring in soft piano halfway through, and end on a held note.
+
+### Combine image, video, speech, and music
+
+> Use Happy Latent to make a short two-scene film about a violinist before her first solo. Create a reference image of her backstage, show it to me, and reuse it to keep her appearance consistent across both scenes. In the first scene, show her opening her violin case. In the second, follow her onto the stage. Generate this narration: “I’d practiced the opening a hundred times. I still took one last breath.” Add a quiet instrumental score under the narration.
+
