@@ -203,7 +203,8 @@ export class Cloud {
       launchClaimed = await this.writeLaunchEvent(plan, stage);
     } else {
       if (pod?.name !== podName(plan) || pod.image !== plan.image || !pod.id) throw new Error('Use a provider read of the exact planned Pod name, image and ID.');
-      if (stage !== 'stopped' && before.status === 'stop_required' && stage !== 'allocated') return before;
+      const reconcileWatchdog = before.checkWorker && WORKER_STAGES.includes(stage);
+      if (stage !== 'stopped' && before.status === 'stop_required' && stage !== 'allocated' && !reconcileWatchdog) return before;
       if (before.status === 'stopped' && stage !== 'stopped') return before;
       if (stage === 'stopped' && !['EXITED', 'TERMINATED'].includes(pod.status)) throw new Error('Read back EXITED or TERMINATED for the exact Pod through Runpod MCP.');
       if (stage !== 'stopped' && ['EXITED', 'TERMINATED'].includes(pod.status)) throw new Error('Record the provider-verified stopped stage for this Pod.');
@@ -220,6 +221,13 @@ export class Cloud {
               || worker.deadline !== plan.lease.deadline || !Object.hasOwn(worker.stages ?? {}, stage)
               || (stage === 'ready' && worker.status !== 'ready')) {
           throw new Error('Use the stage timestamps returned by the prepared authenticated bootstrap status command for this Pod.');
+        }
+        if (reconcileWatchdog) {
+          const armedAt = Date.parse(worker.stages.watchdog_armed);
+          if (!Number.isFinite(armedAt) || armedAt < Date.parse(plan.lease.createdAt) - 30_000
+              || armedAt > Date.parse(before.timeoutAt)
+              || !['armed', 'running'].includes(worker.watchdogStatus)
+              || !WORKER_STAGES.includes(worker.status) || this.now() >= Date.parse(plan.lease.deadline)) return before;
         }
       }
       await this.bindPod(plan, pod.id);
@@ -862,8 +870,11 @@ print(json.dumps(result))
     if (input.podId && !/^[a-zA-Z0-9_-]{1,128}$/.test(input.podId)) throw new Error('Invalid Runpod Pod ID.');
     const setupPodId = await this.setupPodId(plan);
     if (setupPodId && input.podId && input.podId !== setupPodId) throw new Error('This plan is already bound to another Pod.');
-    if ((await readOptional(this.setupPath(plan.planId)))?.state === 'failed'
-        || (await this.launchReport(plan)).status === 'stop_required') {
+    const launch = await this.launchReport(plan);
+    if (launch.checkWorker) {
+      throw new Error('The watchdog checkpoint is missing. Read the authenticated setup status and record the worker stage with cloud_track_launch before connecting.');
+    }
+    if (launch.status === 'stop_required' || (await readOptional(this.setupPath(plan.planId)))?.state === 'failed') {
       throw new Error('This Runpod setup was marked as failed. Verify shutdown through Runpod MCP.');
     }
     if (input.host === undefined && (input.identityFile !== undefined || input.authentication !== undefined || input.port !== undefined || input.hostKey !== undefined)) {

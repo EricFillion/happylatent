@@ -76,13 +76,16 @@ export function launchStatus(events, { now, deadline, setupState, podId }) {
   const stopped = events.some(event => event.stage === 'stopped');
   const timedOut = stage !== 'ready' && !stopped && setupState !== 'connected' && now >= timeoutAt;
   const stopRequired = !stopped && (setupState === 'failed' || timedOut);
+  const checkWorker = timedOut && setupState !== 'failed' && ssh && !watchdog
+    && stage === 'bootstrap_started' && now < leaseEnd;
   const finished = events.find(event => event.stage === 'ready' || event.stage === 'stopped');
   return {
     stage, podId, status: stopped ? 'stopped' : stopRequired ? 'stop_required' : stage === 'ready' ? 'ready' : 'in_progress',
     stageElapsedSeconds: finished || !events.length ? 0 : Math.max(0, (now - Date.parse(events.at(-1).at)) / 1000),
     elapsedSeconds: events.length ? Math.max(0, (Date.parse(finished?.at) || now) - Date.parse(events[0].at)) / 1000 : 0,
     timeoutAt: new Date(timeoutAt).toISOString(), events,
-    ...(stopRequired ? { next: 'Record cloud_setup_failed. Verify ownership using the saved Pod ID or exact planned name through Runpod MCP, stop that Pod, verify EXITED or TERMINATED, then record stopped. Reconcile an ambiguous create before considering another allocation.' } : {}),
+    ...(checkWorker ? { checkWorker: true, next: 'Read the prepared setup.statusCommand through authenticated Runpod exec. Submit the reported stage with cloud_track_launch to record an on-time watchdog checkpoint. If setup cannot be verified or still requires a stop, record cloud_setup_failed and complete verified shutdown.' }
+      : stopRequired ? { next: 'Record cloud_setup_failed. Verify ownership using the saved Pod ID or exact planned name through Runpod MCP, stop that Pod, verify EXITED or TERMINATED, then record stopped. Reconcile an ambiguous create before considering another allocation.' } : {}),
   };
 }
 
