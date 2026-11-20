@@ -1,5 +1,4 @@
 import { createHash } from 'node:crypto';
-import { ErrorCode } from '@modelcontextprotocol/sdk/types.js';
 
 const grants = new WeakMap();
 export function canonical(value) {
@@ -57,24 +56,6 @@ export function assertApproval(grant, manifest) {
   if (!record || record.gate.closed || record.expiresAt <= record.now() || record.digest !== fingerprint(manifest)) {
     throw new ApprovalRequired('The approval is missing, expired or belongs to a different plan. Review and approve the current plan.');
   }
-}
-
-export function mcpApprovalRequest(server) {
-  return async ({ message, signal, requestedSchema, relatedRequestId, meta, timeoutMs = 10 * 60_000 }) => {
-    const capability = server.getClientCapabilities()?.elicitation;
-    if (!capability || (!capability.form && Object.keys(capability).length !== 0)) throw new ApprovalRequired();
-    try {
-      return await server.elicitInput({ mode: 'form', message,
-        ...(meta ? { _meta: meta } : {}),
-        requestedSchema: requestedSchema ?? { type: 'object', properties: {} },
-      }, { timeout: timeoutMs, signal, relatedRequestId });
-    } catch (error) {
-      if (signal?.aborted) throw new Error('Approval request was cancelled. Nothing was started.');
-      if (error.code === ErrorCode.RequestTimeout) throw new Error('Client confirmation timed out. Nothing was started. Retry with the confirmation dialog visible.');
-      if (/does not support.*elicitation/i.test(error.message ?? '')) throw new ApprovalRequired();
-      throw new Error('The client did not return a valid approval. Nothing was started.');
-    }
-  };
 }
 
 export function downloadManifest(plan, runtime = 'local') {

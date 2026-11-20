@@ -3,14 +3,8 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 const modes = ['allow_all', 'ask_each_time'];
-const requestedSchema = {
-  type: 'object',
-  properties: { mode: { type: 'string', title: 'Runpod uploads',
-    enum: modes, enumNames: ['Allow all — don’t ask again', 'Allow this transfer — keep asking'] } },
-  required: ['mode'],
-};
 
-// Only a client elicitation response can grant standing upload consent.
+// Only a user response from an approval UI can grant standing upload consent.
 export class UploadPreference {
   constructor(stateDir, request) {
     this.directory = stateDir; this.path = join(stateDir, 'cloud-upload-preference.json');
@@ -30,13 +24,12 @@ export class UploadPreference {
       throw error;
     }
   }
-  async choose(message, signal) {
-    const schema = message ? requestedSchema : { ...requestedSchema, properties: { mode: {
-      ...requestedSchema.properties.mode, enumNames: [
-        'Allow all — don’t ask again', 'Ask before each transfer',
-      ],
-    } } };
-    const response = await this.request({ signal, requestedSchema: schema, message: [
+  async choose(message, signal, manifest) {
+    const uploadChoices = [
+      ['allow_all', 'Allow all — don’t ask again'],
+      ['ask_each_time', message ? 'Allow this transfer — keep asking' : 'Ask before each transfer'],
+    ];
+    const response = await this.request({ signal, manifest, uploadChoices, message: [
       message ? 'Allow this Runpod transfer?' : 'How should Happy Latent handle Runpod uploads?',
       'Allow all: remember permission on this installation to send media files and generation prompts needed for your requests to current and future connected Runpod Pods. You will not be asked again for each transfer.',
       message
@@ -55,11 +48,11 @@ export class UploadPreference {
     return { mode: response.content.mode };
   }
   configure(signal) { return this.serial(() => this.choose(undefined, signal)); }
-  confirm(_manifest, message, signal) {
+  confirm(manifest, message, signal) {
     return this.serial(async () => {
       if (signal?.aborted) throw new Error('Upload request was cancelled.');
       const { mode } = await this.read();
-      if (mode !== 'allow_all') await this.choose(message, signal);
+      if (mode !== 'allow_all') await this.choose(message, signal, manifest);
       return true;
     });
   }

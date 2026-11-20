@@ -48,23 +48,31 @@ export class ModelReviews {
     this.closed = false;
   }
 
-  async request(key, { digest, message, signal, expiresAt = Infinity }) {
-    if (this.closed || signal?.aborted) throw new Error('Model approval was cancelled.');
+  async request(key, { digest, message, signal, expiresAt = Infinity, uploadChoices, actionTitle }) {
+    const subject = uploadChoices ? 'Runpod upload' : actionTitle ? 'Runpod action' : 'Model';
+    if (this.closed || signal?.aborted) throw new Error(`${subject} approval was cancelled.`);
     const origin = await (this.listener ??= this.listen());
-    if (this.closed || signal?.aborted) throw new Error('Model approval was cancelled.');
+    if (this.closed || signal?.aborted) throw new Error(`${subject} approval was cancelled.`);
     const now = this.now();
     for (const [id, review] of this.reviews) if (review.expiresAt <= now) this.remove(id);
     let review = this.reviews.get(key);
     if (review?.digest !== digest) {
       this.remove(key);
       const deadline = Math.min(now + REVIEW_LIFETIME_MS, expiresAt);
-      if (deadline <= now) throw new Error('This model approval has expired. Request a fresh plan.');
-      review = { digest, message, path: `/models/${token()}`, formToken: token(), expiresAt: deadline };
+      if (deadline <= now) throw new Error(`${subject} approval has expired. Request a fresh review.`);
+      const category = uploadChoices ? 'uploads' : actionTitle ? 'actions' : 'models';
+      review = { digest, message, path: `/${category}/${token()}`,
+        formToken: token(), expiresAt: deadline, uploadChoices, actionTitle };
       this.reviews.set(key, review);
       this.links.set(review.path, review);
     }
-    if (review.action === 'accept') return { action: 'accept' };
-    if (review.action === 'decline') throw new Error('Model approval was declined. Use a new requestId to review the batch again.');
+    if (review.decision && (uploadChoices || actionTitle)) {
+      this.remove(key);
+      if (review.decision === 'decline') return { action: 'decline' };
+      return { action: 'accept', ...(uploadChoices ? { content: { mode: review.decision } } : {}) };
+    }
+    if (review.decision === 'approve') return { action: 'accept' };
+    if (review.decision === 'decline') throw new Error('Model approval was declined. Use a new requestId to review the batch again.');
     throw new ModelReviewPending(origin + review.path, review.expiresAt);
   }
 
@@ -89,30 +97,35 @@ export class ModelReviews {
       return `http://${this.host}`;
     } catch (error) {
       this.listener = undefined;
-      throw new Error('Could not open the local model approval page.', { cause: error });
+      throw new Error('Could not open the local approval page.', { cause: error });
     }
   }
 
   handle(request, response) {
     if (this.closed || request.headers.host !== this.host) return respond(response, 403, 'Request refused');
-    const [, path, formToken, decision] = request.url.match(/^(\/models\/[\w-]+)(?:\/([\w-]+)\/(approve|decline))?$/) ?? [];
+    const [, path, formToken, decision] = request.url.match(/^(\/(?:models|uploads|actions)\/[\w-]+)(?:\/([\w-]+)\/([\w-]+))?$/) ?? [];
     const review = this.links.get(path);
     if (!review || review.expiresAt <= this.now()) {
       return respond(response, 404, 'Review unavailable', '<p>Return to the chat to request a new review.</p>');
     }
+    const choices = review.uploadChoices ?? [['approve', 'Approve this plan']];
     if (request.method === 'POST') {
-      if (request.headers.origin !== `http://${this.host}` || formToken !== review.formToken || !decision) {
+      if (request.headers.origin !== `http://${this.host}` || formToken !== review.formToken
+          || (decision !== 'decline' && !choices.some(([value]) => value === decision))) {
         return respond(response, 403, 'Request refused');
       }
-      review.action ??= decision === 'approve' ? 'accept' : 'decline';
+      review.decision ??= decision;
     } else if (request.method !== 'GET' || formToken) {
       return respond(response, 405, 'Request refused');
     }
-    if (review.action === 'accept') return respond(response, 200, 'Approved', '<p>Return to the chat and ask it to continue the same request.</p>');
-    if (review.action === 'decline') return respond(response, 200, 'Declined', '<p>You can close this page and return to the chat.</p>');
+    if (review.decision === 'decline') return respond(response, 200, 'Declined', '<p>You can close this page and return to the chat.</p>');
+    if (review.decision) return respond(response, 200, 'Approved', '<p>Return to the chat and ask it to continue the same request.</p>');
     const formPath = `${path}/${review.formToken}`;
-    return respond(response, 200, 'Review model downloads', `<pre>${escape(review.message)}</pre>
-<form method="post" action="${formPath}/approve"><button type="submit">Approve this plan</button></form>
+    const buttons = choices.map(([value, label]) =>
+      `<form method="post" action="${formPath}/${value}"><button type="submit">${escape(label)}</button></form>`).join('\n');
+    const title = review.actionTitle ?? (review.uploadChoices ? 'Review Runpod uploads' : 'Review model downloads');
+    return respond(response, 200, title, `<pre>${escape(review.message)}</pre>
+${buttons}
 <form method="post" action="${formPath}/decline"><button type="submit">Decline</button></form>`);
   }
 
