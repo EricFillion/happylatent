@@ -21,7 +21,7 @@
 
 Happy Latent is a creative media generation MCP server with a ComfyUI video node.
 
-### Happy Latent MCP
+## Happy Latent MCP
 - Create and edit multi-scene videos with your AI coding assistant. 
 - Generate images and use them as scene references.
 - Turn text into dialogue or narration.
@@ -29,7 +29,7 @@ Happy Latent is a creative media generation MCP server with a ComfyUI video node
 - Regenerate individual scenes and keep your favorite takes.
 - Generate video, images, and music locally or on RunPod.
 
-Happy Latent Video
+## Happy Latent Video
 - Edit multi-scene videos directly in a ComfyUI node.
 - Arrange scenes and adjust their duration on a timeline.
 - Guide each scene with a prompt and optional first and last frame images.
@@ -71,10 +71,23 @@ git clone https://github.com/EricFillion/happylatent.git
 
 ## Runpod Integration (Advanced)
 
-1. Tell your agent, “Set up Runpod for Happy Latent using https://agents.runpod.io/.”
+1. Copy this prompt into your agent:
+
+   ```text
+   Set up Runpod for Happy Latent using https://agents.runpod.io/.
+   ```
+
 2. Create a [Hugging Face read token](https://huggingface.co/settings/tokens) and save it in [Runpod Secrets](https://console.runpod.io/user/credentials?tab=secrets) as `happy_latent_hf`.
+
 3. Create an SSH key and [add the public key to Runpod](https://console.runpod.io/user/credentials?tab=ssh-key).
-4. Tell your agent, “Launch a GPU on Runpod with Happy Latent and generate a photo of a moose.” Then keep using Happy Latent as usual.
+
+4. Copy this prompt into your agent:
+
+   ```text
+   Launch a GPU on Runpod with Happy Latent and generate a photo of a moose.
+   ```
+
+   Then keep using Happy Latent as usual.
 
 Don't forget to shut down your Pods and delete persistent storage containers!
 
