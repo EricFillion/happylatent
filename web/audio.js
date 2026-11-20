@@ -66,7 +66,7 @@ export function audioModeError(index) {
     return `Clip ${index + 1} has conflicting audio. Use one audio type per clip. Select Silent, Provided audio, or Generated audio for the whole clip.`;
 }
 export function validateGenerationAudio(project) {
-    const index = project.scenes.findIndex((_, index) => sceneAudioConflict(project, index));
+    const index = project.scenes.findIndex((scene, index) => !scene.video && sceneAudioConflict(project, index));
     if (index >= 0)
         throw new Error(audioModeError(index));
 }
@@ -81,6 +81,8 @@ function clipAudioState(project, index) {
 /** Unrelated edits can preserve imported conflicts, but edits cannot create new ones. */
 export function validateAudioModeEdit(next, previous) {
     const index = next.scenes.findIndex((scene, index) => {
+        if (scene.video)
+            return false;
         if (!sceneAudioConflict(next, index))
             return false;
         const prior = previous.scenes.findIndex(row => row.id === scene.id);
@@ -398,4 +400,3 @@ export function moveAudioSegment(segments, sourceId, requestedStart, projectFram
 export function fileSegments(segments) {
     return segments.filter((segment) => segment.kind === "file");
 }
-//# sourceMappingURL=audio.js.map

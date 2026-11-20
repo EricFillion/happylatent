@@ -91,7 +91,7 @@ def _plane(guides, position, reference):
 
 
 class _Internal:
-    CATEGORY = "HappyLatent/internal"
+    CATEGORY = "Happy Latent/internal"
     DEPRECATED = True
     FUNCTION = "execute"
 
@@ -232,7 +232,7 @@ def native_temporal_join_node():
     class HappyLatentTemporalJoin(io.ComfyNode):
         @classmethod
         def define_schema(cls):
-            return io.Schema(node_id="HappyLatentTemporalJoin", category="HappyLatent/internal", is_deprecated=True,
+            return io.Schema(node_id="HappyLatentTemporalJoin", category="Happy Latent/internal", is_deprecated=True,
                 inputs=[io.Int.Input("source_frames", min=9, max=1201), io.Autogrow.Input("windows",
                     template=io.Autogrow.TemplatePrefix(io.Latent.Input("window"), prefix="window", min=1, max=50))],
                 outputs=[io.Latent.Output()])

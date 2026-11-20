@@ -16,15 +16,36 @@ from aiohttp import BodyPartReader, MultipartReader, web
 from server import PromptServer
 
 from .assets import open_asset, asset_url, input_directory
+from .cloud import cloud_status, request_cloud_stop
 from .file_response import send_file
 from .images import MAX_IMAGE_PIXELS, REFERENCE_IMAGE_FORMATS
 from .project import ValidationError, validate_asset
 from .safe_files import open_directory
 from .sampling import model_profile
+from .speech import speech_setup_status
 
 MAX_UPLOAD = 256 * 1024 * 1024
 WEB_ROOT = Path(__file__).resolve().parent.parent / "web"
 _UPLOAD_WORKERS = ThreadPoolExecutor(thread_name_prefix="HappyLatentVideo upload")
+_MUSIC_WORKERS = ThreadPoolExecutor(max_workers=2, thread_name_prefix="HappyLatent music analysis")
+
+
+def analyze_music_asset(payload):
+    """Analyze a pinned input/output handle; never accept an arbitrary path or URL."""
+    from .music_analysis import analyze_music
+
+    fields = {"asset", "startSeconds", "endSeconds", "targetDurationSeconds"}
+    if not isinstance(payload, dict) or set(payload) - fields or "asset" not in payload:
+        raise ValidationError("Music analysis needs an asset and optional analysis range or target duration.")
+    asset = validate_asset(payload["asset"], allow_output=True)
+    if Path(asset["filename"]).suffix.lower() not in (".wav", ".flac", ".mp3", ".ogg", ".m4a", ".aac"):
+        raise ValidationError("Choose an audio asset for music analysis.")
+    options = {target: payload[key] for key, target in (
+        ("startSeconds", "start_seconds"), ("endSeconds", "end_seconds"),
+        ("targetDurationSeconds", "target_duration_seconds")) if key in payload}
+    with open_asset(asset, allow_output=True) as source:
+        analysis = analyze_music(source, **options)
+    return {"asset": asset, "analysis": analysis}
 
 
 class UploadFiles:
@@ -36,7 +57,7 @@ class UploadFiles:
         self._owners = 1
         self.published = False
         self.temporary_name = identifier + ".upload"
-        self.output_name = identifier + (".png" if kind == "image" else ".wav")
+        self.output_name = identifier + {"image": ".png", "audio": ".wav", "video": ".mp4"}[kind]
         self._created = []
         try:
             self.directory = self._directories.enter_context(open_directory(root, "happylatent", create=True))
@@ -113,6 +134,10 @@ class UploadStream:
 
 def prepare_upload(kind, temporary, output):
     """Normalize an upload in a worker thread before publishing its metadata."""
+    if kind == "video":
+        from .video_media import transcode_video
+        metadata, _ = transcode_video(temporary, output)
+        return dict(metadata, duration=metadata["frameCount"] / metadata["fps"])
     if kind == "image":
         from PIL import Image, ImageOps
         try:
@@ -146,6 +171,77 @@ def register_routes():
     server._happylatent_registered = True
     routes = server.routes
 
+    @routes.get("/happylatent/clips")
+    async def clips_catalog(request):
+        from .clips import list_clips
+        clips = await asyncio.to_thread(list_clips, request.query.get("projectId"), request.query.get("runId"))
+        return web.json_response({"clips": clips})
+
+    @routes.get("/happylatent/runs/{run_id}")
+    @routes.get("/happylatent/clips/runs/{run_id}")
+    async def clips_run(request):
+        from .clips import read_run
+        try:
+            return web.json_response(await asyncio.to_thread(read_run, request.match_info["run_id"]))
+        except FileNotFoundError:
+            raise web.HTTPNotFound(text="No saved clips for this run.")
+        except (ValueError, OSError):
+            return web.json_response({"error": "Cannot read this clip run."}, status=400)
+
+    @routes.get("/happylatent/clips/{clip_id}")
+    async def clip_record(request):
+        from .clips import read_clip
+        try:
+            return web.json_response(await asyncio.to_thread(read_clip, request.match_info["clip_id"]))
+        except FileNotFoundError:
+            raise web.HTTPNotFound(text="No saved clip with this ID.")
+        except (ValueError, OSError):
+            return web.json_response({"error": "Cannot read this clip."}, status=400)
+
+    @routes.get("/happylatent/speech-status")
+    async def read_speech_status(request):
+        # Discovery is read-only; it never imports Kokoro or installs packages.
+        return web.json_response(await asyncio.to_thread(speech_setup_status))
+
+    @routes.post("/happylatent/music/analyze")
+    async def read_music_analysis(request):
+        try:
+            payload = await request.json()
+            result = await asyncio.get_running_loop().run_in_executor(_MUSIC_WORKERS, analyze_music_asset, payload)
+            return web.json_response(result)
+        except FileNotFoundError:
+            raise web.HTTPNotFound(text="Music asset not found on this runtime.")
+        except (ValueError, TypeError) as error:
+            return web.json_response({"error": str(error)}, status=400)
+        except (OSError, RuntimeError, ImportError) as error:
+            logging.exception("HappyLatent music analysis failed")
+            return web.json_response({"error": "Music analysis could not decode this asset on the selected runtime."}, status=422)
+
+    @routes.get("/happylatent/cloud")
+    async def read_cloud_status(request):
+        try:
+            return web.json_response(cloud_status())
+        except FileNotFoundError:
+            raise web.HTTPNotFound(text="No managed cloud runtime.")
+        except (OSError, ValueError, KeyError, TypeError):
+            raise web.HTTPServiceUnavailable(text="Cloud watchdog state is unavailable.")
+
+    @routes.post("/happylatent/cloud/stop")
+    async def stop_cloud(request):
+        if request.remote not in ("127.0.0.1", "::1"):
+            raise web.HTTPForbidden(text="Use the private SSH tunnel.")
+        try:
+            payload = await request.json()
+            if server.prompt_queue.get_tasks_remaining() != 0:
+                raise web.HTTPConflict(text="Wait for the cloud generation queue to empty before stopping.")
+            return web.json_response(request_cloud_stop(payload))
+        except FileNotFoundError:
+            raise web.HTTPNotFound(text="No managed cloud runtime.")
+        except (ValueError, KeyError, TypeError):
+            raise web.HTTPBadRequest(text="Cloud runtime identity mismatch or invalid stop request.")
+        except OSError:
+            raise web.HTTPServiceUnavailable(text="Cannot notify the cloud watchdog.")
+
     @routes.post("/happylatent/model-profile")
     async def read_model_profile(request):
         try:
@@ -175,8 +271,8 @@ def register_routes():
     @routes.post("/happylatent/assets")
     async def upload(request):
         kind = request.query.get("kind")
-        if kind not in ("image", "audio"):
-            return web.json_response({"error": "Upload kind must be image or audio."}, status=400)
+        if kind not in ("image", "audio", "video"):
+            return web.json_response({"error": "Upload kind must be image, audio or video."}, status=400)
         try:
             files = UploadFiles(input_directory(), uuid.uuid4().hex, kind)
         except (OSError, RuntimeError, ValueError):
@@ -235,6 +331,9 @@ def register_routes():
                 raise
             files.output.flush()
             asset = {"filename": files.output_name, "subfolder": "happylatent", "type": "input"}
+            if kind == "video":
+                from .clips import register_import
+                metadata["clip"] = register_import(asset, metadata, Path(field.filename or "Imported clip").stem)
             response = web.json_response({"asset": asset, "url": asset_url(asset), **metadata}, status=201)
             files.published = True
             return response

@@ -57,6 +57,50 @@ def _number(value, name, minimum, maximum):
     return 0 if value == 0 else value
 
 
+def validate_music_segments(raw, fps):
+    """Soundtrack overlays remain independent of generation/supplied audio."""
+    if not isinstance(raw, list) or len(raw) > 100:
+        raise ValidationError("Music segments must be an array with at most 100 segments.")
+    result, ids = [], set()
+    for row in raw:
+        if not isinstance(row, dict):
+            raise ValidationError("Music segment must be an object.")
+        identifier = _text(row.get("id"), "Music ID", 128, required=True)
+        if identifier in ids:
+            raise ValidationError("Music IDs must be nonempty and unique.")
+        ids.add(identifier)
+        asset = validate_asset(row.get("asset"))
+        if PurePosixPath(asset["filename"]).suffix.lower() not in (".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aac"):
+            raise ValidationError("Music must use an imported audio asset.")
+        start = _timeline_frame(row.get("startFrame"), "Music start", fps)
+        end = _timeline_frame(row.get("endFrame"), "Music end", fps, 1)
+        if end <= start:
+            raise ValidationError("Music end must be after its start.")
+        samples = frame_sample(end, fps) - frame_sample(start, fps)
+        duration = samples / SAMPLE_RATE
+        source = _number(row.get("sourceStartSeconds", 0), "Music source start", 0, 600)
+        measured = _number(row.get("audioDurationSeconds"), "Measured music duration", 0, 600)
+        if measured <= 0:
+            raise ValidationError("Measured music duration must be positive.")
+        if round(source * SAMPLE_RATE) + samples > round(measured * SAMPLE_RATE):
+            raise ValidationError("Music placement extends beyond the measured audio. Generate a longer track or shorten the placement.")
+        half = (samples // 2) / SAMPLE_RATE
+        fade_in = _number(row.get("fadeInSeconds", min(0.25, half)), "Music fade in", 0, 30)
+        fade_out = _number(row.get("fadeOutSeconds", min(0.5, half)), "Music fade out", 0, 30)
+        if fade_in + fade_out > duration + 1e-9 or round(fade_in * SAMPLE_RATE) + round(fade_out * SAMPLE_RATE) > samples:
+            raise ValidationError("Music fades cannot exceed the placement duration.")
+        item = {"id": identifier, "asset": asset, "startFrame": start, "endFrame": end,
+                "sourceStartSeconds": source, "audioDurationSeconds": measured,
+                "gainDb": _number(row.get("gainDb", -12), "Music gain", -60, 6),
+                "fadeInSeconds": fade_in, "fadeOutSeconds": fade_out}
+        if "name" in row:
+            name = _text(row["name"], "Music name", 255).strip(_TEXT_WHITESPACE)
+            if name:
+                item["name"] = name
+        result.append(item)
+    return sorted(result, key=lambda item: item["startFrame"])
+
+
 def validate_sampling(raw):
     if not isinstance(raw, dict):
         raise ValidationError("Sampling settings must be an object.")
@@ -143,6 +187,31 @@ def validate_asset(raw, *, allow_output=False):
     return {"filename": filename, "subfolder": str(folder), "type": kind}
 
 
+def validate_video_take(raw, *, selection=False):
+    """A durable clip reference; image/audio assets remain input-only."""
+    if not isinstance(raw, dict):
+        raise ValidationError("Video clip must be an object.")
+    asset = validate_asset(raw.get("asset"), allow_output=True)
+    if PurePosixPath(asset["filename"]).suffix.lower() != ".mp4":
+        raise ValidationError("Video clips must be normalized MP4 assets.")
+    result = {"id": _text(raw.get("id"), "Video clip id", 128, required=True), "asset": asset,
+              "frameCount": _integer(raw.get("frameCount"), "Video frame count", 1, 72000),
+              "fps": _number(raw.get("fps"), "Video FPS", 1, 120),
+              "width": _integer(raw.get("width"), "Video width", 1, 8192),
+              "height": _integer(raw.get("height"), "Video height", 1, 8192)}
+    if result["frameCount"] > result["fps"] * 600 + 1e-7:
+        raise ValidationError("Video clips cannot exceed 10 minutes.")
+    if not isinstance(raw.get("hasAudio"), bool):
+        raise ValidationError("Video hasAudio must be a Boolean.")
+    result["hasAudio"] = raw["hasAudio"]
+    for key, limit in (("name", 120), ("createdAt", 64), ("projectId", 128), ("sceneId", 128)):
+        if key in raw:
+            result[key] = _text(raw[key], "Video " + key, limit)
+    if selection:
+        result["sourceStartFrame"] = _integer(raw.get("sourceStartFrame", 0), "Video source start", 0, result["frameCount"] - 1)
+    return result
+
+
 def _scene_prompt(scene):
     parts = [_text(scene.get("prompt", ""), "Clip prompt", MAX_SCENE_PROMPT_LENGTH)]
     # Older v3 projects stored shot cards; retain their authored text on import.
@@ -161,13 +230,13 @@ def _scene_prompt(scene):
 def validate_project(raw):
     if not isinstance(raw, dict):
         raise ValidationError("Project must be an object.")
-    if raw.get("version") not in (1, 2, 3) or isinstance(raw.get("version"), bool):
-        raise ValidationError("Unsupported project version. Expected version 1, 2 or 3.")
+    if raw.get("version") not in (1, 2, 3, 4) or isinstance(raw.get("version"), bool):
+        raise ValidationError("Unsupported project version. Expected version 1, 2, 3 or 4.")
     if raw["version"] != 1 and "audio" in raw:
         raise ValidationError("Projects version 2 and later use audioSegments instead of audio.")
     if raw["version"] == 1 and "audioSegments" in raw:
         raise ValidationError("Audio segments require project version 2.")
-    result = {"version": 3}
+    result = {"version": 4 if raw["version"] == 4 else 3}
     result["id"] = _text(raw.get("id"), "Project id", 128, required=True)
     result["title"] = _text(raw.get("title", "Untitled project"), "Title", 200)
     result["fps"] = _integer(raw.get("fps"), "FPS", 1, 60)
@@ -195,11 +264,19 @@ def validate_project(raw):
         item = {
             "id": _text(scene.get("id"), "Clip id", 128, required=True),
             "prompt": _scene_prompt(scene),
-            "durationFrames": _scene_duration(scene.get("durationFrames"), result["fps"]),
+            "durationFrames": (_integer(scene.get("durationFrames"), "Clip duration", 1, result["fps"] * 600)
+                               if "video" in scene else _scene_duration(scene.get("durationFrames"), result["fps"])),
         }
         if item["id"] in ids:
             raise ValidationError("Clip ids must be unique.")
         ids.add(item["id"])
+        if "video" in scene:
+            if raw["version"] != 4:
+                raise ValidationError("Existing video clips require project version 4.")
+            item["video"] = validate_video_take(scene["video"], selection=True)
+            video = item["video"]
+            if item["durationFrames"] * video["fps"] > (video["frameCount"] - video["sourceStartFrame"]) * result["fps"] + 1e-7:
+                raise ValidationError("Clip duration exceeds the selected video's remaining frames.")
         if "name" in scene:
             name = _text(scene["name"], "Clip name", 120)
             if name.strip(_TEXT_WHITESPACE):
@@ -216,6 +293,8 @@ def validate_project(raw):
             if not isinstance(scene["audioGuidance"], bool):
                 raise ValidationError("Use audio to guide video must be a boolean.")
             item["audioGuidance"] = scene["audioGuidance"]
+        if "audioGuidanceScale" in scene:
+            item["audioGuidanceScale"] = _number(scene["audioGuidanceScale"], "Audio guidance strength", 1, 5)
         if scene.get("image") is not None:
             item["image"] = validate_asset(scene["image"])
         if "crop" in scene:
@@ -229,7 +308,7 @@ def validate_project(raw):
                 item[key] = _number(scene[key], "Image strength", 0, 1)
         if "keyframes" in scene and scene["keyframes"] != []:
             raise ValidationError("Intermediate image keyframes are no longer supported. Remove them from this project or use the archived version.")
-        if item["durationFrames"] == 1 and "image" in item and "endImage" in item:
+        if "video" not in item and item["durationFrames"] == 1 and "image" in item and "endImage" in item:
             raise ValidationError("First and last frame images require a clip of at least 2 frames.")
         if "sampling" in scene:
             # Stored legacy controls remain valid independently of the chosen
@@ -290,6 +369,8 @@ def validate_project(raw):
     for previous, current in zip(result["audioSegments"], result["audioSegments"][1:]):
         if previous["endFrame"] is None or current["startFrame"] < previous["endFrame"]:
             raise ValidationError("Audio segments cannot overlap; only the last block can follow video end.")
+    if "musicSegments" in raw:
+        result["musicSegments"] = validate_music_segments(raw["musicSegments"], result["fps"])
     return result
 
 
@@ -307,9 +388,13 @@ def scene_ranges(project):
     return result
 
 
-def validate_generation_audio(project):
+def validate_generation_audio(project, scene_ids=None):
     """Keep legacy projects editable, but sample only one audio mode per clip."""
     for index, item in enumerate(scene_ranges(project)):
+        if scene_ids is not None and item["scene"]["id"] not in scene_ids:
+            continue
+        if scene_ids is None and item["scene"].get("video"):
+            continue
         segments = [segment for segment in project["audioSegments"]
                     if segment["startFrame"] < item["endFrame"]
                     and (segment["endFrame"] is None or segment["endFrame"] > item["startFrame"])]

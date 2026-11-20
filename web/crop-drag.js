@@ -170,4 +170,3 @@ export function bindCropDrag(frame, options) {
     }, events);
     return { cancel, dispose() { cancel(); abort.abort(); } };
 }
-//# sourceMappingURL=crop-drag.js.map

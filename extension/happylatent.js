@@ -6,7 +6,7 @@ import { watchModelProfile } from "/happylatent/ui/model-profile.js";
 import { createGenerationTracker, executionNode } from "/happylatent/ui/generation-status.js";
 
 const NODE_TYPES = new Set(["HappyLatentVideo"]);
-const DEFAULT_TITLES = new Set(["HappyLatentVideo"]);
+const DEFAULT_TITLES = new Set(["HappyLatentVideo", "Happy Latent Video"]);
 const generation = createGenerationTracker(api, id => executionNode(app.rootGraph ?? app.graph, id));
 
 /** The ordinary STRING widget remains the workflow/API value; the DOM widget only edits it. */
@@ -14,7 +14,7 @@ app.registerExtension({
   name: "HappyLatent.Video",
   nodeCreated(node) {
     if (!NODE_TYPES.has(node.comfyClass) && !NODE_TYPES.has(node.type)) return;
-    function updateTitle() { if (!node.title || DEFAULT_TITLES.has(node.title)) node.title = "HappyLatentVideo"; }
+    function updateTitle() { if (!node.title || DEFAULT_TITLES.has(node.title)) node.title = "Happy Latent Video"; }
     updateTitle();
     const projectWidget = node.widgets?.find(widget => widget.name === "project");
     if (!projectWidget) throw new Error("HappyLatentVideo is missing its project input.");
@@ -22,6 +22,11 @@ app.registerExtension({
     projectWidget.hidden = true;
     projectWidget.computeSize = () => [0, -4];
     projectWidget.computeLayoutSize = () => ({ minWidth: 0, minHeight: 0, maxHeight: 0 });
+    // MCP-only render controls remain serialized without adding native UI widgets.
+    for (const name of ["render_mode", "scene_ids", "run_id"]) {
+      const widget = node.widgets?.find(row => row.name === name);
+      if (widget) { widget.type = "hidden"; widget.hidden = true; widget.computeSize = () => [0, -4]; widget.computeLayoutSize = () => ({ minWidth: 0, minHeight: 0, maxHeight: 0 }); }
+    }
 
     // Native widgets remain the workflow/API persistence boundary. Only connected
     // model inputs expose the corresponding controls in the editor.

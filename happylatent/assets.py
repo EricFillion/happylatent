@@ -36,8 +36,8 @@ def open_asset(asset, *, allow_output=False):
         yield source
 
 
-def asset_fingerprint(asset):
-    with open_asset(asset) as source:
+def asset_fingerprint(asset, *, allow_output=False):
+    with open_asset(asset, allow_output=allow_output) as source:
         metadata = os.fstat(source.fileno())
     # Preserve metadata-based cache behavior, using the actual opened file.
     return (metadata.st_mtime_ns, metadata.st_size, getattr(metadata, "st_ctime_ns", 0),

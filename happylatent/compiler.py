@@ -59,18 +59,26 @@ def validate_refine_options(refine_enabled):
         raise ValidationError("Refine output must be on or off.")
 
 
-def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", prompt=None,
+def compile_project(project, *, model=None, clip=None, video_vae=None, audio_vae=None, prefix="", prompt=None,
                     upscale_enabled=False, upscale_model=None, upscale_mode="spatial", temporal_upscale_model=None,
                     spatial_upscale_model_name=NO_UPSCALE_MODEL, temporal_upscale_model_name=NO_UPSCALE_MODEL,
-                    refine_enabled=None):
+                    refine_enabled=None, render_mode=None, scene_ids="[]", run_id="", _generation_ids=None):
     """Return (expanded graph, VIDEO link), leaving external links untouched.
 
     The caller provides a ComfyUI GraphBuilder prefix to isolate each expansion.
     The optional API prompt identifies the connected model for Auto sampling.
     No filesystem outputs or independent job queue live here.
     """
+    if render_mode is not None:
+        from .clips import compile_clips
+        return compile_clips(project, model=model, clip=clip, video_vae=video_vae, audio_vae=audio_vae,
+            prefix=prefix, prompt=prompt, upscale_enabled=upscale_enabled, upscale_model=upscale_model,
+            upscale_mode=upscale_mode, temporal_upscale_model=temporal_upscale_model,
+            spatial_upscale_model_name=spatial_upscale_model_name,
+            temporal_upscale_model_name=temporal_upscale_model_name, refine_enabled=refine_enabled,
+            render_mode=render_mode, scene_ids=scene_ids, run_id=run_id)
     project = validate_project(project)
-    validate_generation_audio(project)
+    validate_generation_audio(project, _generation_ids)
     validate_upscale_options(upscale_enabled, upscale_model, upscale_mode, temporal_upscale_model,
                              spatial_upscale_model_name, temporal_upscale_model_name)
     validate_refine_options(refine_enabled)
@@ -120,6 +128,8 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
     generated_plan = []
     for index, item in enumerate(scene_ranges(project)):
         scene = item["scene"]
+        if _generation_ids is not None and scene["id"] not in _generation_ids:
+            continue
         sampling = get_sampling(project, scene, resolved_preset=preset)
         sampler_name = sampling["sampler"]
         if sampler_name not in samplers:
@@ -197,7 +207,13 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
             latent = scene_node("av_latent", "LTXVConcatAVLatent", video_latent=video, audio_latent=audio_latent)
         else:
             latent = video
-        sampled = scene_node("sample", "SamplerCustom", model=model, add_noise=True, noise_seed=(project["seed"] + index) % (2**53), cfg=sampling["cfg"], positive=positive, negative=negative, sampler=sampler, sigmas=sigmas, latent_image=latent)
+        # Keep default graphs/cache keys unchanged. Only this clip's base pass
+        # uses the cloned, guided model; the supplied soundtrack stays original.
+        scene_model = model
+        if guide_with_files and scene.get("audioGuidanceScale", 1) > 1:
+            scene_model = scene_node("audio_guidance", "HappyLatentAudioGuidance",
+                                     model=model, strength=scene["audioGuidanceScale"])
+        sampled = scene_node("sample", "SamplerCustom", model=scene_model, add_noise=True, noise_seed=(project["seed"] + index) % (2**53), cfg=sampling["cfg"], positive=positive, negative=negative, sampler=sampler, sigmas=sigmas, latent_image=latent)
         video = scene_node("separate", "LTXVSeparateAVLatent", av_latent=sampled) if uses_audio_latent else sampled
         temporal_source_audio = [video[0], 1] if uses_audio_latent else None
         if generated:
@@ -321,5 +337,15 @@ def compile_project(project, *, model, clip, video_vae, audio_vae, prefix="", pr
         total = sum(scene["durationFrames"] for scene in project["scenes"])
         mix = {"samples": frame_sample(total, project["fps"]), "regions": regions, "generated": generated_plan}
         inputs["complete_audio"] = node("soundtrack", "HappyLatentAudioMix", plan=json.dumps(mix, sort_keys=True), **generated_audio)
+    # The immutable-take compiler assembles its own final soundtrack. Keeping
+    # this stage out of its per-scene graph prevents music being baked into a
+    # saved take and then applied a second time when the take is reused.
+    if project.get("musicSegments") and _generation_ids is None:
+        from .music_nodes import music_mix_plan
+        music = music_mix_plan(project)
+        if music["regions"]:
+            base = {"base_audio": inputs["complete_audio"]} if "complete_audio" in inputs else {}
+            inputs["complete_audio"] = node("music_soundtrack", "HappyLatentMusicMix",
+                                            plan=json.dumps(music, sort_keys=True), **base)
     result = node("sequence", "ConcatenateVideo", codec="h264", **inputs)
     return graph, result

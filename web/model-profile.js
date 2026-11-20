@@ -87,4 +87,3 @@ export function watchModelProfile(editor, update) {
     const timer = setInterval(refresh, 1000);
     return () => { disposed = true; clearInterval(timer); request?.abort(); };
 }
-//# sourceMappingURL=model-profile.js.map
