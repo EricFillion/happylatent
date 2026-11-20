@@ -155,19 +155,34 @@ Copy one of these prompts into your MCP-connected chat.
 
 ### Image
 
-> Use Happy Latent to create a landscape photograph of an open violin case on a backstage bench, lit by a warm dressing-room lamp. Frame it at eye level with the violin in sharp focus. 960 × 544. 
+> Use Happy Latent to create a landscape photograph of an open violin case on a backstage bench, lit by a warm dressing-room lamp. Frame it at eye level with the violin in sharp focus. 960 × 544.
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a6da5ca9-ec32-4195-82a2-3c0f48e13f0e" width="640" alt="An open violin case on a backstage bench lit by a warm dressing-room lamp">
+</p>
+
 
 ### Video
 
 > Use Happy Latent to make a five-second landscape video of a professional male violinist stepping from backstage into a concert hall. 960 × 544.  No upscaling.
 
+
+https://github.com/user-attachments/assets/b7cc3b74-ae4b-4697-b6ca-23603580aad2
+
+
 ### Speech
 
 > Use Happy Latent to generate warm, unhurried male narration. Read this line exactly: “From backstage, I could hear the audience settling into their seats.”
 
+[voice.wav](https://github.com/user-attachments/files/35189368/voice.wav)
+
+
 ### Music
 
 > Use happy latent to generate the following music.  A 15-second close-miked recording of one acoustic violinist playing a quiet, unaccompanied melody. Warm tone on the G and D strings, long legato bow strokes, gentle vibrato, and small pauses that let the phrase breathe. One note at a time, with natural bow changes and subtle room ambience. End on a single sustained note with a soft bow release.
+
+[music.wav](https://github.com/user-attachments/files/35189372/music.wav)
+
 
 ### Combine image, video, speech, and music
 
