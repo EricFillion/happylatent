@@ -155,21 +155,21 @@ Copy one of these prompts into your MCP-connected chat.
 
 ### Image
 
-> Use Happy Latent to create a landscape photograph of an open violin case on a backstage bench, lit by a warm dressing-room lamp. Frame it at eye level with the violin in sharp focus.
+> Use Happy Latent to create a landscape photograph of an open violin case on a backstage bench, lit by a warm dressing-room lamp. Frame it at eye level with the violin in sharp focus. 960 × 544. 
 
 ### Video
 
-> Use Happy Latent to make a five-second landscape video of a violinist stepping from backstage into a concert hall. 
+> Use Happy Latent to make a five-second landscape video of a professional male violinist stepping from backstage into a concert hall. 960 × 544.  No upscaling.
 
 ### Speech
 
-> Use Happy Latent to generate warm, unhurried female narration. Read this line exactly: “From backstage, I could hear the audience settling into their seats.”
+> Use Happy Latent to generate warm, unhurried male narration. Read this line exactly: “From backstage, I could hear the audience settling into their seats.”
 
 ### Music
 
-> Use Happy Latent to generate a 20-second instrumental track for a backstage scene. Start with quiet solo violin, bring in soft piano halfway through, and end on a held note.
+> Use happy latent to generate the following music.  A 15-second close-miked recording of one acoustic violinist playing a quiet, unaccompanied melody. Warm tone on the G and D strings, long legato bow strokes, gentle vibrato, and small pauses that let the phrase breathe. One note at a time, with natural bow changes and subtle room ambience. End on a single sustained note with a soft bow release.
 
 ### Combine image, video, speech, and music
 
-> Use Happy Latent to make a short two-scene film about a violinist before her first solo. Create a reference image of her backstage, show it to me, and reuse it to keep her appearance consistent across both scenes. In the first scene, show her opening her violin case. In the second, follow her onto the stage. Generate this narration: “I’d practiced the opening a hundred times. I still took one last breath.” Add a quiet instrumental score under the narration.
+> Use Happy Latent’s image, video, speech, and music models to make a three-minute, multi-scene film at 960 × 544. No upscaling. Follow a professional male violinist from his backstage preparations through his entrance and the opening phrase of his solo. Choose the scene count, pacing, and shot sequence to suit the story. Use the image model to create a backstage reference of him in black concert attire with his violin, then use that reference with the video model to keep his appearance, wardrobe, and instrument consistent throughout the film. Use the speech model to generate “I’ve played this opening for years” and “I still take one last breath” in the same natural male voice, then use those recordings to drive lip sync in the video model. For each line, frame him alone in a steady, eye-level medium close-up with his face well lit and his mouth clearly visible. Use the music model to generate a quiet instrumental score and a separate unaccompanied violin phrase for the ending. Keep the score low under the dialogue, fade it as he raises his bow, and time the first violin note to his first bow stroke.
 
