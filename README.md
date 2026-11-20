@@ -48,13 +48,6 @@ Set up Happy Latent MCP from https://github.com/EricFillion/happylatent. Ask me 
 
 When model downloads need approval, Happy Latent returns a local browser link. Review the files, sizes and destination, approve the plan, then tell the agent to continue. For Runpod, the review also shows the session budget.
 
-### Local speech setup
-
-Use a separate Python environment with Kokoro and its pronunciation dependencies. Download `config.json`, `kokoro-v1_0.pth`, and at least one `voices/*.pt` preset from [Kokoro 82M](https://huggingface.co/hexgrad/Kokoro-82M), keeping the same folder layout. Then point Happy Latent at the environment and model directory.
-
-```sh
-./install.sh speech-setup --speech-python /path/to/venv/bin/python --speech-model-dir /path/to/Kokoro-82M
-```
 
 ### Happy Latent Video
 
@@ -63,15 +56,6 @@ Navigate to your `custom_nodes` directory then clone the repository.
 ```sh
 git clone https://github.com/EricFillion/happylatent.git
 ```
-
-Download the following files from the [LTX 2.5 repository](https://huggingface.co/Lightricks/LTX-2.5) into the matching folders under `ComfyUI/models/`.
-
-- `diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors`
-- `text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors`
-- `vae/ltx-2.5-video-vae-conv-bf16.safetensors`
-- `vae/ltx-2.5-audio-vae-bf16.safetensors`
-
-Restart ComfyUI and open the [included workflow](workflows/mcp/happylatent.json).
 
 
 ## Supported Models
