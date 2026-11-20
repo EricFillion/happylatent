@@ -92,8 +92,6 @@ Restart ComfyUI and open the [included workflow](workflows/mcp/happylatent.json)
 3. Create an SSH key and [add the public key to Runpod](https://console.runpod.io/user/credentials?tab=ssh-key).
 4. Tell your agent, “Launch a GPU on Runpod with Happy Latent and generate a photo of a moose.” Then keep using Happy Latent as usual.
 
-For follow-up generations, reuse the active Pod. If `check_setup` reports missing models, use `cloud_install_models` with the existing plan ID, approve the missing files, and poll `cloud_model_install_status`. The original session budget and deadline still apply.
-
 Don't forget to shut down your Pods and delete persistent storage containers!
 
 ## Examples
