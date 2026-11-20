@@ -21,7 +21,7 @@
 
 Happy Latent is a creative media generation MCP server with a ComfyUI video node.
 
-### Happy Latent MCP
+## Happy Latent MCP
 - Create and edit multi-scene videos with your AI coding assistant. 
 - Generate images and use them as scene references.
 - Turn text into dialogue or narration.
@@ -29,7 +29,7 @@ Happy Latent is a creative media generation MCP server with a ComfyUI video node
 - Regenerate individual scenes and keep your favorite takes.
 - Generate video, images, and music locally or on RunPod.
 
-Happy Latent Video
+## Happy Latent Video
 - Edit multi-scene videos directly in a ComfyUI node.
 - Arrange scenes and adjust their duration on a timeline.
 - Guide each scene with a prompt and optional first and last frame images.
