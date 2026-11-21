@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { downloadManifest, downloadMessage, fingerprint, assertApproval } from './approvals.mjs';
 import { cloudSelectionPath, readOptional } from './cloud-state.mjs';
 import { prepareModelDownload, checkModelAccess, executeModelDownload, LOCAL_MODEL_MEDIA } from './setup.mjs';
+import { selectSpeechVoices } from './speech-models.mjs';
 import { normalizeEnhancements } from './enhancements.mjs';
 import { ManagedRuntime } from './runtime.mjs';
 
@@ -21,18 +22,19 @@ export class ModelDownloads {
     this.execute = services.execute ?? executeModelDownload;
     this.queue = Promise.resolve(); this.closed = false;
   }
-  async requireLocal(media, enhancements) {
+  async requireLocal(media, enhancements, voices) {
     if (!LOCAL_MODEL_MEDIA.includes(media)) throw new Error('Local model downloads support video, image, music, or speech.');
     if (enhancements && media !== 'video') throw new Error('Enhancements apply to video model downloads only.');
+    if (voices !== undefined && media !== 'speech') throw new Error('Voice selection applies to speech model downloads only.');
     if (media === 'speech') return; // Kokoro always runs locally, including for Runpod projects.
     const selected = await readOptional(cloudSelectionPath(this.config));
     if (selected?.planId) throw new Error('A cloud runtime is selected. Use cloud_plan for cloud model downloads or explicitly switch to local.');
   }
-  async preview({ media = 'video', enhancements }, signal) {
+  async preview({ media = 'video', enhancements, voices }, signal) {
     if (this.closed || signal?.aborted) throw new Error('Model access check was cancelled.');
-    await this.requireLocal(media, enhancements);
+    await this.requireLocal(media, enhancements, voices);
     if (media !== 'speech') await this.runtime.ensure();
-    const options = { ...this.config, media, enhancements };
+    const options = { ...this.config, media, enhancements, voices };
     const plan = await this.prepare(options);
     const status = !plan.files.length ? 'ready' : !plan.modelDirectory ? 'needs_comfy_root' : await this.check(options, plan);
     if (this.closed || signal?.aborted) throw new Error('Model access check was cancelled.');
@@ -42,17 +44,18 @@ export class ModelDownloads {
     const task = this.queue.then(() => this.begin(input, signal));
     this.queue = task.catch(() => {}); return task;
   }
-  async begin({ requestId, media = 'video', enhancements }, signal) {
+  async begin({ requestId, media = 'video', enhancements, voices }, signal) {
     if (this.closed || signal?.aborted) throw new Error('Download request was cancelled.');
     if (typeof requestId !== 'string' || !requestId.trim() || requestId.length > 128) throw new Error('Supply a stable download requestId.');
-    await this.requireLocal(media, enhancements);
+    await this.requireLocal(media, enhancements, voices);
     const videoOptions = media === 'video' ? normalizeEnhancements(enhancements) : undefined;
-    const selection = fingerprint({ media, ...(videoOptions ? { videoOptions } : {}) });
+    const speakers = media === 'speech' ? selectSpeechVoices(voices) : undefined;
+    const selection = fingerprint({ media, ...(videoOptions ? { videoOptions } : {}), ...(speakers ? { speakers } : {}) });
     const prior = this.requests.get(requestId);
-    if (prior && prior.selection !== selection) throw new Error('This requestId belongs to another media download. Use a new requestId.');
+    if (prior && prior.selection !== selection) throw new Error('This requestId belongs to another download selection. Use a new requestId.');
     if (prior && ['downloading', 'completed'].includes(prior.status)) return this.status({ downloadId: prior.id });
     if (media !== 'speech') await this.runtime.ensure();
-    const options = { ...this.config, media, enhancements };
+    const options = { ...this.config, media, enhancements, voices };
     const currentPlan = await this.prepare(options);
     if (!currentPlan.files.length) return { status: 'ready', downloaded: false, plan: currentPlan };
     if (!currentPlan.modelDirectory) throw new Error(steps.needs_comfy_root);

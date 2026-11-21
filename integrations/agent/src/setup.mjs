@@ -21,7 +21,7 @@ import { cloudModels, MUSIC_DOWNLOAD_FILES, spatialUpscaler } from './cloud-mode
 import { UPSCALE_MODELS } from './enhancements.mjs';
 import { IMAGE_MODEL_PROFILE } from './images.mjs';
 import { Speech, speechModelDirectory } from './speech.mjs';
-import { SPEECH_DOWNLOAD_FILES } from './speech-models.mjs';
+import { selectSpeechVoices, SPEECH_DOWNLOAD_FILES } from './speech-models.mjs';
 export { runAuth } from './hf-auth.mjs';
 import { ManagedRuntime, isManagedComfy, isManagedConfig, runtimeLayout as layout } from './runtime.mjs';
 
@@ -524,11 +524,13 @@ async function downloadModel(file, token, { output, onProgress, signal }) {
 
 export async function prepareModelDownload(options) {
   const media = options.media ?? 'video';
-  const catalog = downloadFiles(media);
   if (options.enhancements && media !== 'video') throw new Error('Enhancements apply to video model downloads only.');
+  if (options.voices !== undefined && media !== 'speech') throw new Error('Voice selection applies to speech model downloads only.');
   if (media === 'speech') {
+    const speakers = selectSpeechVoices(options.voices);
+    const keys = ['config.json', 'kokoro-v1_0.pth', ...speakers.map(speaker => `voices/${speaker}.pt`)];
     const root = await canonicalDestination(speechModelDirectory(options));
-    const installed = await Promise.all(Object.keys(catalog).map(async key => {
+    const installed = await Promise.all(keys.map(async key => {
       const info = await stat(join(root, key)).catch(error => {
         if (error.code !== 'ENOENT') throw error;
       });
