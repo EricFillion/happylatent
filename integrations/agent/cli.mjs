@@ -11,6 +11,7 @@ const help = `Happy Latent Agent
   auth [--force | --forget]
   models [--media video|image|music|speech] [--download] [--comfy-root PATH]
          [--spatial-upscale] [--temporal-upscale] [--speech-model-dir PATH]
+         [--voice ID ... | --voice-language LANGUAGE]
   speech-setup --speech-model-dir PATH [--speech-python PATH] [--speech-device auto|mps|cuda|cpu]
   cloud-setup --client codex|claude|none [--workspace PATH]
   cloud-status
@@ -40,7 +41,8 @@ async function main() {
     },
     auth: { force: { type: 'boolean' }, forget: { type: 'boolean' } },
     models: { ...connection, download: { type: 'boolean' }, media: { type: 'string', default: 'video' },
-      'spatial-upscale': { type: 'boolean' }, 'temporal-upscale': { type: 'boolean' }, 'speech-model-dir': { type: 'string' } },
+      'spatial-upscale': { type: 'boolean' }, 'temporal-upscale': { type: 'boolean' }, 'speech-model-dir': { type: 'string' },
+      voice: { type: 'string', multiple: true }, 'voice-language': { type: 'string' } },
     'speech-setup': {
       'speech-model-dir': { type: 'string' },
       'speech-python': { type: 'string' },
@@ -104,11 +106,14 @@ async function main() {
       spatialUpscale: Boolean(values['spatial-upscale']), temporalUpscale: Boolean(values['temporal-upscale']),
     } : undefined;
     if (enhancements && values.media !== 'video') throw new Error('Upscaler flags apply to video model downloads only.');
+    if (values.voice && values['voice-language']) throw new Error('Choose --voice or --voice-language.');
+    const voices = values.voice ?? values['voice-language'];
+    if (voices !== undefined && values.media !== 'speech') throw new Error('Voice selection applies to speech model downloads only.');
     const { ManagedRuntime } = await import('./src/runtime.mjs');
     const runtime = new ManagedRuntime(config);
     try {
       if (values.media !== 'speech') await runtime.ensure();
-      const plan = await runModels({ ...config, download: values.download, media: values.media, enhancements });
+      const plan = await runModels({ ...config, download: values.download, media: values.media, enhancements, voices });
       if (plan) console.log(JSON.stringify(plan, null, 2));
     } finally { await runtime.close(); }
   } else if (operation === 'speech-setup') {
