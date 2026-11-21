@@ -8,7 +8,7 @@ export const LAUNCH_STAGES = [
   'watchdog_armed', 'installing', 'downloading', 'starting', 'ready',
 ];
 export const WORKER_STAGES = ['watchdog_armed', 'installing', 'downloading', 'starting', 'ready'];
-const SSH_TIMEOUT_MS = 4 * 60_000;
+const SSH_TIMEOUT_MS = 16 * 60_000;
 const WATCHDOG_TIMEOUT_MS = 3 * 60_000;
 
 export async function runpodPreflight({ provider, templateId, image, limits, volumeId, checkIdentity, checkQuote, now }) {
