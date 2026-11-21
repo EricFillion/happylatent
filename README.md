@@ -38,9 +38,10 @@ Happy Latent is a creative media generation MCP server with a ComfyUI video node
 
 ## Install
 
-### MCP
+Supported platforms: macOS and Linux. Windows compatibility is unverified.
 
-Paste this into a chat with your AI coding assistant, like Claude Code or Codex: 
+
+### MCP
 
 ```text
 Set up Happy Latent MCP from https://github.com/EricFillion/happylatent. Ask me whether I want to run it locally or on Runpod, and what I’d like to generate: video, images, speech, or music. Then guide me through setup.
