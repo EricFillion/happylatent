@@ -9,7 +9,8 @@ const help = `Happy Latent Agent
   verify [--generate] [--timeout SECONDS] [--request-id ID]
   start | stop | status
   auth [--force | --forget]
-  models [--media video|music] [--download] [--comfy-root PATH]
+  models [--media video|image|music|speech] [--download] [--comfy-root PATH]
+         [--spatial-upscale] [--temporal-upscale] [--speech-model-dir PATH]
   speech-setup --speech-model-dir PATH [--speech-python PATH] [--speech-device auto|mps|cuda|cpu]
   cloud-setup --client codex|claude|none [--workspace PATH]
   cloud-status
@@ -38,7 +39,8 @@ async function main() {
       verify: { type: 'boolean' }, 'test-generation': { type: 'boolean' },
     },
     auth: { force: { type: 'boolean' }, forget: { type: 'boolean' } },
-    models: { ...connection, download: { type: 'boolean' }, media: { type: 'string', default: 'video' } },
+    models: { ...connection, download: { type: 'boolean' }, media: { type: 'string', default: 'video' },
+      'spatial-upscale': { type: 'boolean' }, 'temporal-upscale': { type: 'boolean' }, 'speech-model-dir': { type: 'string' } },
     'speech-setup': {
       'speech-model-dir': { type: 'string' },
       'speech-python': { type: 'string' },
@@ -96,13 +98,17 @@ async function main() {
       console.log(JSON.stringify({ ...result, message: 'Legacy Happy Latent credentials removed; shared HF CLI credentials are unchanged. Use hf auth logout to remove HF CLI credentials, and Hugging Face settings to revoke tokens.' }, null, 2));
     } else await runAuth({ stateDir: config.stateDir, force: values.force });
   } else if (operation === 'models') {
-    if (!['video', 'music'].includes(values.media)) throw new Error('Use --media video or music.');
-    const { runModels } = await import('./src/setup.mjs');
+    const { runModels, LOCAL_MODEL_MEDIA } = await import('./src/setup.mjs');
+    if (!LOCAL_MODEL_MEDIA.includes(values.media)) throw new Error('Use --media video, image, music, or speech.');
+    const enhancements = values['spatial-upscale'] || values['temporal-upscale'] ? {
+      spatialUpscale: Boolean(values['spatial-upscale']), temporalUpscale: Boolean(values['temporal-upscale']),
+    } : undefined;
+    if (enhancements && values.media !== 'video') throw new Error('Upscaler flags apply to video model downloads only.');
     const { ManagedRuntime } = await import('./src/runtime.mjs');
     const runtime = new ManagedRuntime(config);
     try {
-      await runtime.ensure();
-      const plan = await runModels({ ...config, download: values.download, media: values.media });
+      if (values.media !== 'speech') await runtime.ensure();
+      const plan = await runModels({ ...config, download: values.download, media: values.media, enhancements });
       if (plan) console.log(JSON.stringify(plan, null, 2));
     } finally { await runtime.close(); }
   } else if (operation === 'speech-setup') {

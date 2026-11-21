@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { constants, createReadStream, createWriteStream } from 'node:fs';
 import {
-  cp, link, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename, rm, statfs, writeFile,
+  cp, link, lstat, mkdir, mkdtemp, open, readFile, readdir, realpath, rename, rm, stat, statfs, writeFile,
 } from 'node:fs/promises';
 import { createConnection } from 'node:net';
 import { totalmem } from 'node:os';
@@ -17,7 +17,11 @@ import { authToken } from './hf-auth.mjs';
 import { ApprovalGate, assertApproval, downloadManifest } from './approvals.mjs';
 import { canonicalDestination, safeModelDirectory, trustedModelUrl } from './download-safety.mjs';
 import { runtimeDependencyLock } from './cloud-provenance.mjs';
-import { MUSIC_DOWNLOAD_FILES } from './cloud-models.mjs';
+import { cloudModels, MUSIC_DOWNLOAD_FILES, spatialUpscaler } from './cloud-models.mjs';
+import { UPSCALE_MODELS } from './enhancements.mjs';
+import { IMAGE_MODEL_PROFILE } from './images.mjs';
+import { Speech, speechModelDirectory } from './speech.mjs';
+import { SPEECH_DOWNLOAD_FILES } from './speech-models.mjs';
 export { runAuth } from './hf-auth.mjs';
 import { ManagedRuntime, isManagedComfy, isManagedConfig, runtimeLayout as layout } from './runtime.mjs';
 
@@ -49,14 +53,23 @@ const MODEL_FILES = {
     size: 364866540,
     sha256: 'c52733d37f6a7fb7949c3dc0fb468c6cb2169e4d836983a73babb9f0d54837a5',
   },
+  temporalUpscale: {
+    path: `latent_upscale_models/${UPSCALE_MODELS.temporalUpscale.filename}`,
+    size: 261944000,
+    sha256: '2bc3300f2b3c3c1834d72164fbf13a3b9fd73e5a741e8a2c3f4035f89a75c3fe',
+  },
 };
+export const LOCAL_MODEL_MEDIA = ['video', 'image', 'music', 'speech'];
+const imageModels = cloudModels('image');
+const IMAGE_DOWNLOAD_FILES = Object.fromEntries(Object.entries(IMAGE_MODEL_PROFILE).map(([key, { dir, filenames }]) =>
+  [key, imageModels.find(file => file.path === `${dir}/${filenames[0]}`)]));
 const NODE_FILES = [
   '__init__.py', 'happylatent', 'extension', 'web', 'workflows/mcp',
   'pyproject.toml', 'README.md', 'LICENSE',
 ];
 
-function inspectComfy({ comfyUrl, stateDir, workspaceDir, media = 'video' }) {
-  return new Comfy({ comfyUrl, dataDir: stateDir, assetRoot: workspaceDir }).checkSetup({ media });
+function inspectComfy({ comfyUrl, stateDir, workspaceDir, media = 'video', enhancements }) {
+  return new Comfy({ comfyUrl, dataDir: stateDir, assetRoot: workspaceDir }).checkSetup({ media, enhancements });
 }
 
 async function fileInfo(path) {
@@ -332,11 +345,18 @@ async function modelTarget(comfyRoot, comfyUrl) {
 }
 
 function downloadFiles(media) {
+  if (media === 'image') return IMAGE_DOWNLOAD_FILES;
   if (media === 'music') return MUSIC_DOWNLOAD_FILES;
-  if (media !== 'video') throw new Error('Local model downloads support media video or music.');
-  return Object.fromEntries(Object.entries(MODEL_FILES).map(([key, entry]) => [key,
-    { ...entry, repo: HF_REPO, revision: HF_REVISION, filename: entry.path }]));
+  if (media === 'speech') return SPEECH_DOWNLOAD_FILES;
+  if (media !== 'video') throw new Error('Local model downloads support video, image, music, or speech.');
+  return {
+    ...Object.fromEntries(Object.entries(MODEL_FILES).map(([key, entry]) => [key,
+      { ...entry, repo: HF_REPO, revision: HF_REVISION, filename: entry.path }])),
+    spatialUpscale: spatialUpscaler,
+  };
 }
+
+const publicModels = media => media === 'image' || media === 'speech';
 
 function modelPlan(missing, root, media = 'video') {
   const catalog = downloadFiles(media);
@@ -378,8 +398,9 @@ async function requireApproval(plan, input = process.stdin, output = process.std
 
 export async function checkModelAccess({ stateDir }, plan, { authTokenImpl = authToken } = {}) {
   if (plan.files.length === 0) return 'ready';
-  const token = await authTokenImpl(stateDir, { required: false });
-  if (!token) return 'needs_token';
+  const requiresToken = !publicModels(plan.media);
+  const token = requiresToken ? await authTokenImpl(stateDir, { required: false }) : undefined;
+  if (requiresToken && !token) return 'needs_token';
 
   const signal = AbortSignal.timeout(10_000);
   const catalog = downloadFiles(plan.media ?? 'video');
@@ -391,7 +412,7 @@ export async function checkModelAccess({ stateDir }, plan, { authTokenImpl = aut
     try {
       response = await fetch(url, {
         method: 'HEAD',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         redirect: 'manual',
         signal,
       });
@@ -414,7 +435,7 @@ async function openModelResponse(source, token, offset, signal) {
   let url = trustedModelUrl(source);
   for (let redirects = 0; redirects < 6; redirects++) {
     const headers = {};
-    if (url.origin === HF_ORIGIN) headers.Authorization = `Bearer ${token}`;
+    if (token && url.origin === HF_ORIGIN) headers.Authorization = `Bearer ${token}`;
     if (offset) headers.Range = `bytes=${offset}-`;
     const timeout = AbortSignal.timeout(6 * 60 * 60 * 1000);
     const response = await fetch(url, { headers, redirect: 'manual', signal: signal ? AbortSignal.any([signal, timeout]) : timeout });
@@ -428,7 +449,7 @@ async function openModelResponse(source, token, offset, signal) {
     if (!response.ok) {
       await response.body?.cancel();
       if ([401, 403].includes(response.status)) {
-        throw new Error(`Hugging Face denied access. Confirm this account has access at ${HF_MODEL_URL}.`);
+        throw new Error('Hugging Face denied access to the reviewed model file.');
       }
       throw new Error(`Model download failed with HTTP ${response.status}. Rerun models --download to resume.`);
     }
@@ -502,7 +523,19 @@ async function downloadModel(file, token, { output, onProgress, signal }) {
 }
 
 export async function prepareModelDownload(options) {
-  downloadFiles(options.media ?? 'video');
+  const media = options.media ?? 'video';
+  const catalog = downloadFiles(media);
+  if (options.enhancements && media !== 'video') throw new Error('Enhancements apply to video model downloads only.');
+  if (media === 'speech') {
+    const root = await canonicalDestination(speechModelDirectory(options));
+    const installed = await Promise.all(Object.keys(catalog).map(async key => {
+      const info = await stat(join(root, key)).catch(error => {
+        if (error.code !== 'ENOENT') throw error;
+      });
+      return info?.isFile() && info.size > 0 ? null : { key };
+    }));
+    return modelPlan(installed.filter(Boolean), root, media);
+  }
   const result = await inspectComfy(options);
   if (!['ready', 'missing_models'].includes(result.status)) {
     throw new Error(`Run setup first. Local ComfyUI reports ${result.status}.`);
@@ -511,7 +544,7 @@ export async function prepareModelDownload(options) {
   const managedRoot = await isManagedComfy(managed.comfy, result.comfyUrl) ? managed.comfy : undefined;
   const comfyRoot = options.comfyRoot ? await localComfyRoot(options.comfyRoot) : managedRoot;
   const destination = await modelTarget(comfyRoot, result.comfyUrl);
-  return modelPlan(result.missingModels ?? [], destination ? await canonicalDestination(destination) : undefined, options.media ?? 'video');
+  return modelPlan(result.missingModels ?? [], destination ? await canonicalDestination(destination) : undefined, media);
 }
 
 // Every execution path must carry a grant issued by a trusted client/UI adapter.
@@ -538,14 +571,16 @@ export async function executeModelDownload(options, plan, { output, onProgress, 
         file: file.path, bytes: completedBytes + bytes, totalBytes: plan.totalBytes,
       }));
       reportProgress?.(0);
-      const token = await authToken(options.stateDir);
+      const token = publicModels(plan.media) ? undefined : await authToken(options.stateDir);
       assertApproval(approval, downloadManifest(plan));
       await downloadModel(file, token, { output, onProgress: reportProgress, signal });
       completedBytes += file.size;
       onProgress?.({ file: file.path, bytes: completedBytes, totalBytes: plan.totalBytes });
     }
-    const refreshed = await inspectComfy({ ...options, media: plan.media ?? 'video' });
-    return { ...plan, downloaded: true, ready: refreshed.status === 'ready' };
+    const refreshed = plan.media === 'speech' ? await new Speech(options).checkSetup()
+      : await inspectComfy({ ...options, media: plan.media ?? 'video' });
+    return { ...plan, downloaded: true, ready: refreshed.status === 'ready',
+      ...(plan.media === 'speech' ? { setup: refreshed } : {}) };
   });
 }
 
