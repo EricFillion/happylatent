@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { downloadManifest, downloadMessage, fingerprint, assertApproval } from './approvals.mjs';
 import { cloudSelectionPath, readOptional } from './cloud-state.mjs';
-import { prepareModelDownload, checkModelAccess, executeModelDownload } from './setup.mjs';
+import { prepareModelDownload, checkModelAccess, executeModelDownload, LOCAL_MODEL_MEDIA } from './setup.mjs';
+import { normalizeEnhancements } from './enhancements.mjs';
 import { ManagedRuntime } from './runtime.mjs';
 
 const steps = {
@@ -20,16 +21,18 @@ export class ModelDownloads {
     this.execute = services.execute ?? executeModelDownload;
     this.queue = Promise.resolve(); this.closed = false;
   }
-  async requireLocal(media) {
-    if (!['video', 'music'].includes(media)) throw new Error('Local model downloads support media video or music.');
+  async requireLocal(media, enhancements) {
+    if (!LOCAL_MODEL_MEDIA.includes(media)) throw new Error('Local model downloads support video, image, music, or speech.');
+    if (enhancements && media !== 'video') throw new Error('Enhancements apply to video model downloads only.');
+    if (media === 'speech') return; // Kokoro always runs locally, including for Runpod projects.
     const selected = await readOptional(cloudSelectionPath(this.config));
     if (selected?.planId) throw new Error('A cloud runtime is selected. Use cloud_plan for cloud model downloads or explicitly switch to local.');
   }
-  async preview({ media = 'video' }, signal) {
+  async preview({ media = 'video', enhancements }, signal) {
     if (this.closed || signal?.aborted) throw new Error('Model access check was cancelled.');
-    await this.requireLocal(media);
-    await this.runtime.ensure();
-    const options = { ...this.config, media };
+    await this.requireLocal(media, enhancements);
+    if (media !== 'speech') await this.runtime.ensure();
+    const options = { ...this.config, media, enhancements };
     const plan = await this.prepare(options);
     const status = !plan.files.length ? 'ready' : !plan.modelDirectory ? 'needs_comfy_root' : await this.check(options, plan);
     if (this.closed || signal?.aborted) throw new Error('Model access check was cancelled.');
@@ -39,15 +42,17 @@ export class ModelDownloads {
     const task = this.queue.then(() => this.begin(input, signal));
     this.queue = task.catch(() => {}); return task;
   }
-  async begin({ requestId, media = 'video' }, signal) {
+  async begin({ requestId, media = 'video', enhancements }, signal) {
     if (this.closed || signal?.aborted) throw new Error('Download request was cancelled.');
     if (typeof requestId !== 'string' || !requestId.trim() || requestId.length > 128) throw new Error('Supply a stable download requestId.');
-    await this.requireLocal(media);
+    await this.requireLocal(media, enhancements);
+    const videoOptions = media === 'video' ? normalizeEnhancements(enhancements) : undefined;
+    const selection = fingerprint({ media, ...(videoOptions ? { videoOptions } : {}) });
     const prior = this.requests.get(requestId);
-    if (prior && prior.media !== media) throw new Error('This requestId belongs to another media download. Use a new requestId.');
+    if (prior && prior.selection !== selection) throw new Error('This requestId belongs to another media download. Use a new requestId.');
     if (prior && ['downloading', 'completed'].includes(prior.status)) return this.status({ downloadId: prior.id });
-    await this.runtime.ensure();
-    const options = { ...this.config, media };
+    if (media !== 'speech') await this.runtime.ensure();
+    const options = { ...this.config, media, enhancements };
     const currentPlan = await this.prepare(options);
     if (!currentPlan.files.length) return { status: 'ready', downloaded: false, plan: currentPlan };
     if (!currentPlan.modelDirectory) throw new Error(steps.needs_comfy_root);
@@ -65,7 +70,9 @@ export class ModelDownloads {
     const phase = await this.check(options, plan);
     if (phase !== 'ready_to_download') throw new Error(steps[phase] ?? 'Check Hugging Face model access with check_model_access, then retry.');
     const manifest = downloadManifest(plan);
-    const approval = await this.gate.require(manifest, downloadMessage(manifest), { signal, allowSmallDownload: true });
+    const approval = await this.gate.require(manifest, downloadMessage(manifest), {
+      signal, allowSmallDownload: media === 'video' || media === 'music',
+    });
     // Check again after a potentially long human interaction, before starting.
     const latest = await this.prepare(options);
     const latestManifest = downloadManifest(latest);
@@ -74,7 +81,7 @@ export class ModelDownloads {
     }
     assertApproval(approval, manifest);
     if (signal?.aborted || this.closed) throw new Error('Download request was cancelled.');
-    const job = prior ?? { id: randomUUID(), requestId, media, plan };
+    const job = prior ?? { id: randomUUID(), requestId, media, selection, plan };
     job.status = 'downloading'; job.error = undefined; job.controller = new AbortController();
     this.jobs.set(job.id, job); this.requests.set(requestId, job);
     job.work = Promise.resolve().then(() => this.execute(options, plan, {

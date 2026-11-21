@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { mkdir, mkdtemp, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -13,6 +13,7 @@ const modelVersion = '1.0';
 const jobTimeout = 15 * 60_000;
 const startupTimeout = 15_000;
 export const isSpeechJob = id => /^speech-[a-f0-9]{32}$/.test(id);
+export const speechModelDirectory = ({ stateDir, speech }) => speech?.modelDir ?? join(stateDir, 'models', 'Kokoro-82M');
 
 async function readJson(file) {
   try { return JSON.parse(await readFile(file, 'utf8')); }
@@ -58,7 +59,8 @@ function workerRunning(pid) {
 export class Speech {
   constructor({ stateDir, speech }) {
     this.jobs = join(stateDir, 'speech-jobs');
-    this.config = speech;
+    this.config = speech ?? { modelDir: speechModelDirectory({ stateDir }), python: 'python3', device: 'cpu' };
+    this.configured = Boolean(speech?.modelDir);
   }
 
   workerArgs(action) {
@@ -67,10 +69,12 @@ export class Speech {
 
   async checkSetup() {
     const info = { media: 'speech', model, modelVersion, speakers: [] };
-    if (!this.config?.modelDir) {
-      return { ...info, status: 'unconfigured', reason: 'Run speech-setup with the path to the local Kokoro 82M v1.0 model directory.' };
-    }
     try {
+      if (!this.configured && !(await stat(this.config.modelDir).catch(error => {
+        if (error.code !== 'ENOENT') throw error;
+      }))?.isDirectory()) {
+        return { ...info, status: 'unconfigured', reason: 'Use download_models with media=speech, or run speech-setup with an existing Kokoro model directory.' };
+      }
       const { stdout } = await run(this.config.python, this.workerArgs('check'), { timeout: 30_000 });
       const setup = JSON.parse(stdout.trim().split(/\r?\n/).at(-1));
       return { ...info, ...setup };

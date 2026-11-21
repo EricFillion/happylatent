@@ -73,7 +73,7 @@ export function downloadMessage(manifest) {
   for (const repo of repos) lines.push(`Repository: ${repo} — https://huggingface.co/${repo}`);
   lines.push('');
   for (const file of manifest.files) {
-    lines.push(`${file.path} — ${(file.size / 1e9).toFixed(2)} GB${repos.length > 1 ? ` — ${file.repository}` : ''}`);
+    lines.push(`${file.path} — ${(file.size / 1e9).toFixed(2)} GB (${file.size.toLocaleString('en-US')} bytes)${repos.length > 1 ? ` — ${file.repository}` : ''}`);
   }
   lines.push('', `Total: ${(manifest.files.reduce((sum, file) => sum + file.size, 0) / 1e9).toFixed(2)} GB`,
     `Destination: ${manifest.destination}`, `Runtime: ${manifest.runtime}`,
